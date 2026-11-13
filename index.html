@@ -215,7 +215,7 @@ function enterOnlineRoom(){
   const playersRef=roomRef.child("players");
   playersRef.on("child_added",snap=>{onPlayerData(snap);checkHost();});
   playersRef.on("child_changed",snap=>onPlayerData(snap));
-  playersRef.on("child_removed",snap=>{delete playersCache[snap.key];syncPlayers(playersCache);checkHost();});
+  playersRef.on("child_removed",snap=>{delete playersCache[snap.key];syncPlayers(playersCache);checkHost();if(snap.key===playerId)reinscribeSelf();});
   roomRef.child("host").on("value",snap=>{
     const newHost=snap.val();window.__roomHostId=newHost||null;
     isHost=!!newHost&&newHost===playerId;
@@ -226,16 +226,17 @@ function enterOnlineRoom(){
   roomRef.child("game").on("value",snap=>{const st=snap.val();if(st)applyRemoteGameState(st)});
   roomRef.onDisconnect().cancel();
   roomRef.child("players/"+playerId).onDisconnect().remove();
-  db.ref(".info/connected").on("value",s=>{
-    if(s.val()!==true||!roomRef)return;
-    const me=roomRef.child("players/"+playerId);
-    me.onDisconnect().remove();
-    me.once("value").then(sn=>{
-      if(sn.exists()&&sn.child("name").exists())return;
-      const e=E[0];
-      me.update({name:playerName,alive:true,score:Number(e&&e.score)||0,joinedAt:Date.now(),pos:{x:Number(e&&e.x)||0,y:0,z:Number(e&&e.z)||0}});
-    }).catch(err=>console.warn("No se pudo reinscribir al jugador:",err));
-  });
+  db.ref(".info/connected").on("value",s=>{if(s.val()===true)reinscribeSelf()});
+}
+function reinscribeSelf(){
+  if(!roomRef||!playerId)return;
+  const me=roomRef.child("players/"+playerId);
+  me.onDisconnect().remove();
+  me.once("value").then(sn=>{
+    if(sn.exists()&&sn.child("name").exists())return;
+    const e=E[0];
+    me.update({name:playerName,alive:true,score:Number(e&&e.score)||0,joinedAt:Date.now(),pos:{x:Number(e&&e.x)||0,y:0,z:Number(e&&e.z)||0}});
+  }).catch(err=>console.warn("No se pudo reinscribir al jugador:",err));
 }
 async function electReplacementHost(players){
   if(!roomRef||!playerId)return;
@@ -320,7 +321,7 @@ function renderScoreboard(players){
 }
 function escapeHTML(v){return String(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
 function publishPlayer(){
-  if(!roomRef||!playerId||!E[0])return;
+  if(!roomRef||!playerId||!E[0]||!playersCache[playerId])return;
   const e=E[0],EPS=0.05;
   const x=Math.round(e.x*100)/100,y=Math.round(e.y*100)/100,z=Math.round(e.z*100)/100;
   if(lastSentAlive!==e.alive){
@@ -433,7 +434,7 @@ const E=COL.map((c,i)=>{const mesh=bean(c),sh=new THREE.Mesh(sg,smat);sh.rotatio
 const pm=new THREE.Mesh(new THREE.ConeGeometry(.35,.6,8),new THREE.MeshBasicMaterial({color:0x5cf2ff}));pm.rotation.x=Math.PI;pm.position.y=2.9;E[0].mesh.add(pm);
 // Estado
 const G={ph:'idle',t:0,round:0},MAXR=15;
-let completing=false;
+let completing=false,lastTm=-1;
 function alive(){return E.filter(e=>e.alive).length}
 function hud(){const n=alive();$('al').textContent=n+(n===1?' vivo':' vivos');$('rd').textContent='Ronda '+G.round+'/'+MAXR+(G.msg?' · '+G.msg:'')}
 function say(q){G.msg=q||'';hud()}
@@ -506,7 +507,7 @@ $('jb').onpointerdown=()=>{jump=true};
 // Bucle
 const clk=new THREE.Clock();
 function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05);
-if(G.ph!=='idle'){G.t-=dt;$('tm').textContent=Math.max(0,Math.ceil(G.t));if((!roomRef||isHost)&&G.t<=0)nextPhase()}
+if(G.ph!=='idle'){G.t-=dt;const tv=Math.max(0,Math.ceil(G.t));if(tv!==lastTm){lastTm=tv;$('tm').textContent=tv}if((!roomRef||isHost)&&G.t<=0)nextPhase()}
 if(G.ph==='warn')T.forEach(t=>{if(!t.ok)t.top.color.setHex(Math.floor(clk.elapsedTime*8)%2?0x555555:0xffffff)});
 T.forEach(t=>{if(!t.solid){t.v+=30*dt;t.m.position.y-=t.v*dt;t.m.rotation.x+=dt*.6}});
 E.forEach((e,idx)=>{if(!e.alive){if(idx===0)jump=false;return}if(roomRef&&idx>0){

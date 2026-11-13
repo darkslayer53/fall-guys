@@ -292,7 +292,7 @@ function applySlot(id,slot,p){
     if(fresh||respawned){e.x=px;e.z=pz;}        // teletransporte limpio al reaparecer
     e.respawnAt=Number(p.respawnAt)||0;
   }else if(respawned){
-    e.x=px;e.z=pz;e.y=py;e.vy=0;e.on=true;e.lockTileIndex=null;e.respawnAt=Number(p.respawnAt)||0;
+    e.x=px;e.z=pz;e.y=py;e.vy=0;e.on=true;e.lockTileIndex=null;if(G.ph==='warn'||G.ph==='drop')e.hold=true;e.respawnAt=Number(p.respawnAt)||0;
   }
   e.mesh.visible=e.sh.visible=e.alive;
   e.mesh.position.set(e.x,e.y+.3,e.z);
@@ -354,7 +354,7 @@ function applyRemoteGameState(st){
         }
         if(Array.isArray(st.tileOk))st.tileOk.slice(0,T.length).forEach((v,i)=>{const tile=T[i];if(tile){tile.ok=!!v;labQ(tile,"ABCD"[Math.floor(i/8)*2+(i%4>>1)],QC[Math.floor(i/8)*2+(i%4>>1)])}});
         if(Array.isArray(st.tileSolid))st.tileSolid.slice(0,T.length).forEach((v,i)=>{if(T[i])T[i].solid=!!v});
-        if(st.phase==="pick"){T.forEach(tile=>{tile.m.position.y=0;tile.m.rotation.set(0,0,0);tile.v=0;tile.top.color.setHex(0xffffff)});E[0].lockTileIndex=null;}
+        if(st.phase==="pick"){T.forEach(tile=>{tile.m.position.y=0;tile.m.rotation.set(0,0,0);tile.v=0;tile.top.color.setHex(0xffffff)});E[0].lockTileIndex=null;E[0].y=0;E[0].vy=0;E[0].on=true;E[0].hold=false;}
         lastStateKey=nextKey;
         $("ov").classList.add("off");say({pick:"Corre a tu respuesta",warn:"¡Cuidado!",drop:"¡Se caen!"}[st.phase]||"");
       }else G.t=Number(st.time)||G.t;
@@ -518,7 +518,7 @@ F.forEach(f=>{f.d-=dt;if(f.d<=0&&f.m.position.y>f.ty)f.m.position.y=Math.max(f.t
 T.forEach(t=>{if(!t.solid){t.v+=30*dt;t.m.position.y-=t.v*dt;t.m.rotation.x+=dt*.6}});
 E.forEach((e,idx)=>{if(!e.alive){if(idx===0)jump=false;return}if(roomRef&&idx>0){
   if(e.targetX!==undefined){const ox=e.x,oz=e.z,k=1-Math.exp(-10*dt);e.x+=(e.targetX-e.x)*k;e.z+=(e.targetZ-e.z)*k;const mx=e.x-ox,mz=e.z-oz;if(Math.hypot(mx,mz)>.002)e.mesh.rotation.y=Math.atan2(mx,mz)}
-  e.mesh.position.set(e.x,e.y+.3,e.z);e.sh.position.set(e.x,.32,e.z);return}let dx=0,dz=0,sp=7;
+  e.mesh.position.set(e.x,e.y+.3,e.z);e.sh.position.set(e.x,.32,e.z);return}if(e.hold){if(G.ph==='warn'||G.ph==='drop'){e.y=0;e.vy=0;e.on=true;e.mesh.position.set(e.x,.3,e.z);e.sh.position.set(e.x,.32,e.z);return}e.hold=false;e.y=0;e.vy=0;e.on=true}let dx=0,dz=0,sp=7;
 if(!e.bot){if(G.ph!=='idle'){dx=(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+jx;dz=(K.KeyS||K.ArrowDown?1:0)-(K.KeyW||K.ArrowUp?1:0)+jz;
 const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l}if(jump&&e.on){e.vy=9.5;e.on=false}}jump=false}
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Cuenta la fruta - salas corregidas</title>
+<title>Gráficos al límite</title>
 <link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;--bg:#2d0b4e;--card:rgba(24,6,44,.72);--gold:#ffd23f;--cyan:#5cf2ff;--pink:#ff2a6d;--ink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -24,7 +24,7 @@ input{-webkit-user-select:text;user-select:text}
 #ov{position:fixed;inset:0;z-index:20;display:flex;background:rgba(10,0,24,.78);padding:16px;overflow-y:auto;touch-action:pan-y}
 #ov.off{display:none}
 #bx{max-width:360px;margin:auto;text-align:center;background:linear-gradient(#4a1a80,#1d0a3a);border:4px solid var(--gold);border-radius:24px;padding:22px}
-h1{margin:0;font-size:38px;color:var(--gold);text-shadow:0 4px 0 #000}
+h1{margin:0;font-size:38px;line-height:1.05;color:var(--gold);text-shadow:0 4px 0 #000}
 h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #t3{font-size:15px;line-height:1.45;margin:0 0 16px;color:#eadcff}
 #go{width:100%;padding:14px;font-size:22px;border:0;border-bottom:5px solid #1e9e4b;border-radius:16px;background:#3dff88;color:#25093f;cursor:pointer}
@@ -35,6 +35,8 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.7)}
 #jb{right:22px;width:96px;height:96px;border-radius:50%;border:0;background:var(--pink);color:#fff;font-size:15px}
 @media(pointer:coarse){#joy,#jb{display:block}}
+#ntags .ntag{position:fixed;left:0;top:0;z-index:4;display:none;pointer-events:none;padding:2px 9px;border-radius:9px;background:rgba(24,6,44,.8);border:1px solid rgba(255,255,255,.4);font:700 12px "Fredoka",system-ui,sans-serif;color:#fff;white-space:nowrap;will-change:transform}
+#ntags .ntag.me{border-color:var(--cyan);color:var(--cyan)}
 @media(max-height:520px){#hud{gap:3px;padding-top:calc(env(safe-area-inset-top,0px) + 4px)}#card{padding:3px 10px;max-width:min(96vw,640px)}#q{font-size:11px;line-height:1.2}#opts{grid-template-columns:repeat(4,1fr);max-width:min(96vw,640px);gap:3px}#opts div{font-size:10px;line-height:1.15;padding:2px 5px}#bar{font-size:12px;gap:6px}#bar span{padding:1px 8px}#roomHud{display:none}}
 </style>
 </head>
@@ -45,7 +47,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <button id="scoreToggle" type="button" aria-expanded="false">🏆 Puntos</button>
 <div id="scoreboard" aria-hidden="true"><strong>Tabla de puntos</strong><div id="scoreRows">Aún no hay puntuaciones</div></div>
 <div id="ov"><div id="bx">
-<h1 id="t1">FALL GUYS</h1><h2 id="t2">Preguntas y casillas</h2>
+<h1 id="t1">GRÁFICOS AL LÍMITE</h1><h2 id="t2">Preguntas y casillas</h2>
 <p id="t3">Entra a una sala o crea una nueva. El primer jugador será el anfitrión. ¡Juega con personas desde cualquier lugar!<br>WASD o flechas para moverte, espacio para saltar.</p>
 <input id="playerName" maxlength="16" placeholder="Tu nombre" value="Jugador" style="box-sizing:border-box;width:100%;padding:12px;border-radius:12px;border:2px solid #ffd23f;margin:0 0 9px;font:700 16px Fredoka;text-align:center">
 <button id="go">Crear sala online</button>
@@ -55,6 +57,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 </div>
 <p id="onlineStatus" style="font-size:13px;color:#eadcff;margin:10px 0 0">Pulsa “Crear sala online”. Si hay un problema, aquí aparecerá el motivo.</p>
 </div></div>
+<div id="ntags"></div>
 <div id="joy"><div id="knob"></div></div>
 <button id="jb">Saltar</button>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -425,7 +428,7 @@ const sc=new THREE.Scene();sc.background=new THREE.Color(0x2d0b4e);
 const cam=new THREE.PerspectiveCamera(45,1,.1,200);
 const rn=new THREE.WebGLRenderer({antialias:true});rn.setPixelRatio(Math.min(devicePixelRatio,2));
 rn.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%';document.body.prepend(rn.domElement);
-function rs(){const a=innerWidth/innerHeight,k=Math.max(1,.85/a);rn.setSize(innerWidth,innerHeight,false);cam.aspect=a;cam.position.set(0,26*k,20*k);cam.lookAt(0,0,0);cam.updateProjectionMatrix()}
+function rs(){const a=innerWidth/innerHeight,k=Math.max(1,.85/a);rn.setSize(innerWidth,innerHeight,false);cam.aspect=a;cam.position.set(0,26*k,20*k);cam.lookAt(0,0,0);cam.updateProjectionMatrix();cam.updateMatrixWorld()}
 addEventListener('resize',rs);rs();
 sc.add(new THREE.AmbientLight(0xffffff,.75));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(15,40,20);sc.add(dl);
 const slime=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x00ff66,roughness:.1,transparent:true,opacity:.85}));
@@ -464,6 +467,20 @@ function applyPlayerSkin(e,id){
 }
 const sg=new THREE.CircleGeometry(.7,16),smat=new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3});
 const E=COL.slice(0,MAXP).map((c,i)=>{const mesh=bean(c),sh=new THREE.Mesh(sg,smat);sh.rotation.x=-Math.PI/2;sc.add(mesh,sh);return{mesh,sh,x:0,y:0,z:0,vy:0,on:true,alive:true,bot:false,lockTileIndex:null}});E.forEach((e,i)=>{if(i>0){e.alive=false;e.mesh.visible=e.sh.visible=false}});
+// Nombre de cada jugador flotando sobre su muñeco (etiquetas HTML proyectadas desde 3D)
+const tagBox=$('ntags'),V3=new THREE.Vector3();
+const tags=E.map((e,i)=>{const d=document.createElement('div');d.className='ntag'+(i===0?' me':'');tagBox.appendChild(d);return d});
+function tagLabel(e){const n=e.name||'Jugador';let k=0;for(const id of playerOrder){if(id===e.uid)break;const p=playersCache[id];if(p&&(p.name||'Jugador').toLowerCase()===n.toLowerCase())k++}return k?n+' ('+(k+1)+')':n}
+function updateTags(){
+  E.forEach((e,i)=>{const d=tags[i];
+    if(!e.uid||!e.alive||!e.mesh.visible){if(d._on){d.style.display='none';d._on=false}return}
+    V3.set(e.x,e.y+(i===0?3.7:2.5),e.z).project(cam);
+    if(V3.z>1){if(d._on){d.style.display='none';d._on=false}return}
+    const px=Math.round((V3.x*.5+.5)*innerWidth),py=Math.round((-V3.y*.5+.5)*innerHeight),lb=tagLabel(e);
+    if(d._t!==lb){d._t=lb;d.textContent=lb}
+    if(d._x!==px||d._y!==py){d._x=px;d._y=py;d.style.transform='translate('+px+'px,'+py+'px) translate(-50%,-100%)'}
+    if(!d._on){d.style.display='block';d._on=true}
+  })}
 const pm=new THREE.Mesh(new THREE.ConeGeometry(.35,.6,8),new THREE.MeshBasicMaterial({color:0x5cf2ff}));pm.rotation.x=Math.PI;pm.position.y=2.9;E[0].mesh.add(pm);
 // Estado
 const G={ph:'idle',t:0,round:0},MAXR=15;
@@ -583,7 +600,7 @@ if(roomRef&&performance.now()-lastPublish>100){lastPublish=performance.now();pub
    lastStatePublish=performance.now();
    roomRef.child("game").update({time:G.t,phase:G.ph,round:G.round,updatedAt:Date.now()});
  }
- rn.render(sc,cam)}
+ updateTags();rn.render(sc,cam)}
 loop();
 </script>
 </body>

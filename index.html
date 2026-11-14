@@ -73,6 +73,8 @@ const firebaseConfig = {
 };
 let db=null, roomRef=null, roomId=null, playerId=null, isHost=false;
 let playerName="Jugador", playerOrder=[], slotPlayerIds=[], lastStateKey="", lastPublish=0, lastStatePublish=0;
+const MAXP=4,STALE_MS=10000;     // máximo de jugadores y tiempo sin latir para considerar a alguien caído
+const lastSeen={};                // uid -> hora local en que vimos latir a ese jugador
 const playersCache={};            // uid -> {name,score,alive,joinedAt,respawnAt,pos}
 let lastSentPos=null, lastSentAlive=null;
 // Los botones se conectan antes de inicializar Three.js para que un fallo gráfico no los deje inactivos.
@@ -183,9 +185,13 @@ async function joinOnlineRoom(){
     const snap=await roomRef.once("value");
     if(!snap.exists()) throw new Error("No existe esa sala. Comprueba el código.");
     const data=snap.val();
-    if(Object.keys(data.players||{}).length>=8) throw new Error("La sala está completa (máximo 8 jugadores).");
+    if(Object.keys(data.players||{}).length>=MAXP) throw new Error("La sala está completa (máximo "+MAXP+" jugadores).");
     isHost=data.host===playerId;
     await roomRef.child("players/"+playerId).set({name:playerName,alive:true,score:0,joinedAt:Date.now(),pos:{x:0,y:0,z:0}});
+    // comprobación atómica del límite: si dos entran a la vez, solo se quedan los primeros MAXP
+    const after=(await roomRef.child("players").once("value")).val()||{};
+    const order=Object.entries(after).sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0)||(a[0]<b[0]?-1:1)).map(x=>x[0]);
+    if(order.indexOf(playerId)>=MAXP){await roomRef.child("players/"+playerId).remove();throw new Error("La sala está completa (máximo "+MAXP+" jugadores).");}
     enterOnlineRoom();
   }catch(e){
     console.error("Error entrando a sala:",e);
@@ -215,10 +221,10 @@ function enterOnlineRoom(){
   const playersRef=roomRef.child("players");
   playersRef.on("child_added",snap=>{onPlayerData(snap);checkHost();});
   playersRef.on("child_changed",snap=>onPlayerData(snap));
-  playersRef.on("child_removed",snap=>{delete playersCache[snap.key];syncPlayers(playersCache);checkHost();if(snap.key===playerId)reinscribeSelf();});
+  playersRef.on("child_removed",snap=>{delete playersCache[snap.key];delete lastSeen[snap.key];syncPlayers(playersCache);checkHost();if(snap.key===playerId)reinscribeSelf();});
   roomRef.child("host").on("value",snap=>{
     const newHost=snap.val();window.__roomHostId=newHost||null;
-    isHost=!!newHost&&newHost===playerId;
+    const wasHost=isHost;isHost=!!newHost&&newHost===playerId;if(isHost&&!wasHost)takeOverGame();
     if(!newHost){roomRef.child("players").once("value").then(s=>electReplacementHost(s.val()||{})).catch(err=>console.warn(err));}
     if(isHost){$("roomHud").textContent="Sala "+roomId+" · HOST";$("t2").textContent="Eres el anfitrión";$("go").textContent="Iniciar / continuar";$("go").disabled=false;}
     else if(newHost){$("roomHud").textContent="Sala "+roomId+" · JUGADOR";$("go").textContent="Esperando al host…";$("go").disabled=true;}
@@ -227,6 +233,18 @@ function enterOnlineRoom(){
   roomRef.onDisconnect().cancel();
   roomRef.child("players/"+playerId).onDisconnect().remove();
   db.ref(".info/connected").on("value",s=>{if(s.val()===true)reinscribeSelf()});
+  // latido: cada 2 s digo "sigo aquí"; si alguien lleva >STALE_MS sin latir, se le expulsa (cubre cierres de app que Firebase tarda en detectar)
+  setInterval(()=>{if(roomRef&&playersCache[playerId])roomRef.child("players/"+playerId+"/hb").set(Date.now())},2000);
+  setInterval(()=>{
+    if(!roomRef||document.hidden)return;
+    const now=Date.now();
+    Object.keys(playersCache).forEach(id=>{
+      if(id===playerId||playersCache[id].hb===undefined)return;
+      if(lastSeen[id]&&now-lastSeen[id]>STALE_MS)roomRef.child("players/"+id).remove();
+    });
+  },2000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden){const n=Date.now();Object.keys(lastSeen).forEach(k=>{lastSeen[k]=n})}});
+  addEventListener("pagehide",e=>{if(!e.persisted&&roomRef&&playerId)roomRef.child("players/"+playerId).remove()});
 }
 function reinscribeSelf(){
   if(!roomRef||!playerId)return;
@@ -240,34 +258,38 @@ function reinscribeSelf(){
 }
 async function electReplacementHost(players){
   if(!roomRef||!playerId)return;
-  const candidates=Object.entries(players||{}).filter(([id])=>!!id).sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0));
+  const now=Date.now();
+  const candidates=Object.entries(players||{}).filter(([id,p])=>!!id&&!(p&&p.hb!==undefined&&lastSeen[id]&&now-lastSeen[id]>STALE_MS)).sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0));
   if(!candidates.length)return;
   const candidateId=candidates[0][0];
   try{
-    const hostRef=roomRef.child("host");
-    const result=await hostRef.transaction(current=>{
+    await roomRef.child("host").transaction(current=>{
       if(current && players[current]) return;
       return candidateId;
     },undefined,false);
-    if(result.committed && result.snapshot.val()===playerId){
-      isHost=true;
-      const gs=await roomRef.child("game").once("value"),st=gs.val()||{};
-      if(st.status==="playing"){
-        G.round=Number(st.round)||0;G.ph=st.phase||"pick";G.t=Number(st.time)||1;
-        G.questions=Array.isArray(st.questions)&&st.questions.length?st.questions:QS.slice();
-        if(Array.isArray(st.tileOk))st.tileOk.slice(0,T.length).forEach((v,i)=>{
-          const tile=T[i];if(tile){tile.ok=!!v;const q=Math.floor(i/8)*2+(i%4>>1);labQ(tile,"ABCD"[q],QC[q]);}
-        });
-        if(Array.isArray(st.tileSolid))st.tileSolid.slice(0,T.length).forEach((v,i)=>{if(T[i])T[i].solid=!!v;});
-        lastStateKey=String(G.round)+G.ph;
-        $("ov").classList.add("off");
-        setStatus("El anfitrión anterior se desconectó. Continúas como anfitrión.");
-      }else if(st.status==="finished"){
-        $("go").textContent="Jugar otra vez";$("go").disabled=false;
-      }
+  }catch(err){console.warn("No se pudo elegir un nuevo anfitrión:",err);setStatus("El anfitrión se desconectó, pero no se pudo transferir el control. Revisa las reglas de Firebase.");}
+}
+async function takeOverGame(){
+  try{
+    const gs=await roomRef.child("game").once("value"),st=gs.val()||{};
+    if(!isHost)return;
+    completing=false;
+    if(st.status==="playing"){
+      G.round=Number(st.round)||0;G.ph=st.phase||"pick";G.t=Number(st.time)||1;
+      G.questions=Array.isArray(st.questions)&&st.questions.length?st.questions:QS.slice();
+      if(Array.isArray(st.tileOk))st.tileOk.slice(0,T.length).forEach((v,i)=>{
+        const tile=T[i];if(tile){tile.ok=!!v;const q=Math.floor(i/8)*2+(i%4>>1);labQ(tile,"ABCD"[q],QC[q]);}
+      });
+      if(Array.isArray(st.tileSolid))st.tileSolid.slice(0,T.length).forEach((v,i)=>{if(T[i])T[i].solid=!!v;});
+      lastStateKey=String(G.round)+G.ph;
+      $("ov").classList.add("off");
+      setStatus("El anfitrión anterior se desconectó. Continúas como anfitrión.");
+      publishGameState();
+    }else if(st.status==="finished"){
+      $("go").textContent="Jugar otra vez";$("go").disabled=false;
       publishGameState();
     }
-  }catch(err){console.warn("No se pudo elegir un nuevo anfitrión:",err);setStatus("El anfitrión se desconectó, pero no se pudo transferir el control. Revisa las reglas de Firebase.");}
+  }catch(err){console.warn("No se pudo tomar el control de la partida:",err)}
 }
 function syncPlayers(players){
   const ids=Object.keys(players).sort((a,b)=>(players[a].joinedAt||0)-(players[b].joinedAt||0));
@@ -303,6 +325,7 @@ const playerMetaKey=p=>[p.name,p.score,p.alive,p.respawnAt].join("|");
 function onPlayerData(snap){
   const id=snap.key,p=snap.val();if(!p)return;
   const prev=playersCache[id];
+  if(!prev||p.hb!==prev.hb)lastSeen[id]=Date.now();
   playersCache[id]=p;
   if(!prev){syncPlayers(playersCache);return;}             // jugador nuevo: recalcula slots
   const slot=slotPlayerIds.indexOf(id);
@@ -430,7 +453,7 @@ function applyPlayerSkin(e,id){
   });
 }
 const sg=new THREE.CircleGeometry(.7,16),smat=new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3});
-const E=COL.map((c,i)=>{const mesh=bean(c),sh=new THREE.Mesh(sg,smat);sh.rotation.x=-Math.PI/2;sc.add(mesh,sh);return{mesh,sh,x:0,y:0,z:0,vy:0,on:true,alive:true,bot:false,lockTileIndex:null}});E.forEach((e,i)=>{if(i>0){e.alive=false;e.mesh.visible=e.sh.visible=false}});
+const E=COL.slice(0,MAXP).map((c,i)=>{const mesh=bean(c),sh=new THREE.Mesh(sg,smat);sh.rotation.x=-Math.PI/2;sc.add(mesh,sh);return{mesh,sh,x:0,y:0,z:0,vy:0,on:true,alive:true,bot:false,lockTileIndex:null}});E.forEach((e,i)=>{if(i>0){e.alive=false;e.mesh.visible=e.sh.visible=false}});
 const pm=new THREE.Mesh(new THREE.ConeGeometry(.35,.6,8),new THREE.MeshBasicMaterial({color:0x5cf2ff}));pm.rotation.x=Math.PI;pm.position.y=2.9;E[0].mesh.add(pm);
 // Estado
 const G={ph:'idle',t:0,round:0},MAXR=15;

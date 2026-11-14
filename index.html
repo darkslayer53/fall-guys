@@ -35,6 +35,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.7)}
 #jb{right:22px;width:96px;height:96px;border-radius:50%;border:0;background:var(--pink);color:#fff;font-size:15px}
 @media(pointer:coarse){#joy,#jb{display:block}}
+@media(max-height:520px){#hud{gap:3px;padding-top:calc(env(safe-area-inset-top,0px) + 4px)}#card{padding:3px 10px;max-width:min(96vw,640px)}#q{font-size:11px;line-height:1.2}#opts{grid-template-columns:repeat(4,1fr);max-width:min(96vw,640px);gap:3px}#opts div{font-size:10px;line-height:1.15;padding:2px 5px}#bar{font-size:12px;gap:6px}#bar span{padding:1px 8px}#roomHud{display:none}}
 </style>
 </head>
 <body>
@@ -43,7 +44,6 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <div id="bar"><span id="rd">Ronda 0/15</span><span id="tm">0</span><span id="al">1 vivo</span></div><div id="roomHud" style="font-size:12px;background:rgba(24,6,44,.72);padding:3px 10px;border-radius:9px"></div></div>
 <button id="scoreToggle" type="button" aria-expanded="false">🏆 Puntos</button>
 <div id="scoreboard" aria-hidden="true"><strong>Tabla de puntos</strong><div id="scoreRows">Aún no hay puntuaciones</div></div>
-</div>
 <div id="ov"><div id="bx">
 <h1 id="t1">FALL GUYS</h1><h2 id="t2">Preguntas y casillas</h2>
 <p id="t3">Entra a una sala o crea una nueva. El primer jugador será el anfitrión. ¡Juega con personas desde cualquier lugar!<br>WASD o flechas para moverte, espacio para saltar.</p>
@@ -71,7 +71,7 @@ const firebaseConfig = {
   projectId: "fall-guys-e044e",
   appId: "1:534983818770:web:9bfa3e5fefd5c67c26a2cb"
 };
-let db=null, roomRef=null, roomId=null, playerId=null, isHost=false;
+let db=null, roomRef=null, roomId=null, playerId=null, isHost=false, myColor=0;
 let playerName="Jugador", playerOrder=[], slotPlayerIds=[], lastStateKey="", lastPublish=0, lastStatePublish=0;
 const MAXP=4,STALE_MS=10000;     // máximo de jugadores y tiempo sin latir para considerar a alguien caído
 const lastSeen={};                // uid -> hora local en que vimos latir a ese jugador
@@ -149,7 +149,7 @@ async function createOnlineRoom(){
           host:playerId,
           createdAt:now,
           game:{status:"waiting",round:0,phase:"idle",updatedAt:now},
-          players:{[playerId]:{name:playerName,alive:true,score:0,joinedAt:now,pos:{x:0,y:0,z:0}}}
+          players:{[playerId]:{name:playerName,alive:true,score:0,joinedAt:now,color:0,pos:{x:0,y:0,z:0}}}
         };
       }, undefined, false);
       if(result.committed){
@@ -187,11 +187,20 @@ async function joinOnlineRoom(){
     const data=snap.val();
     if(Object.keys(data.players||{}).length>=MAXP) throw new Error("La sala está completa (máximo "+MAXP+" jugadores).");
     isHost=data.host===playerId;
-    await roomRef.child("players/"+playerId).set({name:playerName,alive:true,score:0,joinedAt:Date.now(),pos:{x:0,y:0,z:0}});
+    // quien entra durante la caída (warn/drop) espera a la siguiente ronda: no puntúa ni se le elimina sin poder jugar
+    const g0=data.game||{},late=g0.status==="playing"&&(g0.phase==="warn"||g0.phase==="drop");
+    const usedC=new Set(Object.values(data.players||{}).map(v=>v&&v.color).filter(c=>c!==undefined));let myC=0;while(usedC.has(myC))myC++;
+    const myJoined=Date.now();
+    await roomRef.child("players/"+playerId).set({name:playerName,alive:!late,score:0,joinedAt:myJoined,color:myC,pos:{x:0,y:0,z:0}});
     // comprobación atómica del límite: si dos entran a la vez, solo se quedan los primeros MAXP
     const after=(await roomRef.child("players").once("value")).val()||{};
     const order=Object.entries(after).sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0)||(a[0]<b[0]?-1:1)).map(x=>x[0]);
     if(order.indexOf(playerId)>=MAXP){await roomRef.child("players/"+playerId).remove();throw new Error("La sala está completa (máximo "+MAXP+" jugadores).");}
+    if(Object.entries(after).some(([k,v])=>k!==playerId&&v.color===myC&&(v.joinedAt||0)<=myJoined)){
+      const used2=new Set(Object.entries(after).filter(([k])=>k!==playerId).map(([,v])=>v.color));myC=0;while(used2.has(myC))myC++;
+      await roomRef.child("players/"+playerId+"/color").set(myC);
+    }
+    myColor=myC;
     enterOnlineRoom();
   }catch(e){
     console.error("Error entrando a sala:",e);
@@ -226,7 +235,7 @@ function enterOnlineRoom(){
     const newHost=snap.val();window.__roomHostId=newHost||null;
     const wasHost=isHost;isHost=!!newHost&&newHost===playerId;if(isHost&&!wasHost)takeOverGame();
     if(!newHost){roomRef.child("players").once("value").then(s=>electReplacementHost(s.val()||{})).catch(err=>console.warn(err));}
-    if(isHost){$("roomHud").textContent="Sala "+roomId+" · HOST";$("t2").textContent="Eres el anfitrión";$("go").textContent="Iniciar / continuar";$("go").disabled=false;}
+    if(isHost){$("roomHud").textContent="Sala "+roomId+" · HOST";$("t2").textContent="Eres el anfitrión";if(!wasHost)$("go").textContent="Iniciar / continuar";$("go").disabled=false;}
     else if(newHost){$("roomHud").textContent="Sala "+roomId+" · JUGADOR";$("go").textContent="Esperando al host…";$("go").disabled=true;}
   });
   roomRef.child("game").on("value",snap=>{const st=snap.val();if(st)applyRemoteGameState(st)});
@@ -234,7 +243,7 @@ function enterOnlineRoom(){
   roomRef.child("players/"+playerId).onDisconnect().remove();
   db.ref(".info/connected").on("value",s=>{if(s.val()===true)reinscribeSelf()});
   // latido: cada 2 s digo "sigo aquí"; si alguien lleva >STALE_MS sin latir, se le expulsa (cubre cierres de app que Firebase tarda en detectar)
-  setInterval(()=>{if(roomRef&&playersCache[playerId])roomRef.child("players/"+playerId+"/hb").set(Date.now())},2000);
+  setInterval(()=>{if(roomRef&&!document.hidden&&playersCache[playerId])roomRef.child("players/"+playerId+"/hb").set(Date.now())},2000);
   setInterval(()=>{
     if(!roomRef||document.hidden)return;
     const now=Date.now();
@@ -253,7 +262,7 @@ function reinscribeSelf(){
   me.once("value").then(sn=>{
     if(sn.exists()&&sn.child("name").exists())return;
     const e=E[0];
-    me.update({name:playerName,alive:true,score:Number(e&&e.score)||0,joinedAt:Date.now(),pos:{x:Number(e&&e.x)||0,y:0,z:Number(e&&e.z)||0}});
+    me.update({name:playerName,alive:true,score:Number(e&&e.score)||0,joinedAt:Date.now(),color:myColor,pos:{x:Number(e&&e.x)||0,y:0,z:Number(e&&e.z)||0}});
   }).catch(err=>console.warn("No se pudo reinscribir al jugador:",err));
 }
 async function electReplacementHost(players){
@@ -276,7 +285,7 @@ async function takeOverGame(){
     completing=false;
     if(st.status==="playing"){
       G.round=Number(st.round)||0;G.ph=st.phase||"pick";G.t=Number(st.time)||1;
-      G.questions=Array.isArray(st.questions)&&st.questions.length?st.questions:QS.slice();
+      const qo=Array.isArray(st.qorder)?st.qorder.map(i=>QS[i]).filter(Boolean):[];G.questions=qo.length===QS.length?qo:QS.slice();
       if(Array.isArray(st.tileOk))st.tileOk.slice(0,T.length).forEach((v,i)=>{
         const tile=T[i];if(tile){tile.ok=!!v;const q=Math.floor(i/8)*2+(i%4>>1);labQ(tile,"ABCD"[q],QC[q]);}
       });
@@ -311,8 +320,8 @@ function applySlot(id,slot,p){
   applyPlayerSkin(e,id);
   e.name=p.name||"Jugador";e.score=Number(p.score)||0;e.alive=p.alive!==false;
   if(id!==playerId){
-    e.targetX=px;e.targetZ=pz;e.y=py;
-    if(fresh||respawned){e.x=px;e.z=pz;}        // teletransporte limpio al reaparecer
+    e.targetX=px;e.targetZ=pz;e.targetY=py;
+    if(fresh||respawned){e.x=px;e.z=pz;e.y=py;}        // teletransporte limpio al reaparecer
     e.respawnAt=Number(p.respawnAt)||0;
   }else if(respawned){
     e.x=px;e.z=pz;e.y=py;e.vy=0;e.on=true;e.lockTileIndex=null;if(G.ph==='warn'||G.ph==='drop')e.hold=true;e.respawnAt=Number(p.respawnAt)||0;
@@ -321,7 +330,7 @@ function applySlot(id,slot,p){
   e.mesh.position.set(e.x,e.y+.3,e.z);
   e.sh.position.set(e.x,.32,e.z);
 }
-const playerMetaKey=p=>[p.name,p.score,p.alive,p.respawnAt].join("|");
+const playerMetaKey=p=>[p.name,p.score,p.alive,p.respawnAt,p.color].join("|");
 function onPlayerData(snap){
   const id=snap.key,p=snap.val();if(!p)return;
   const prev=playersCache[id];
@@ -334,7 +343,7 @@ function onPlayerData(snap){
     else{applySlot(id,slot,p);renderScoreboard(playersCache);hud();}
   }else if(id!==playerId&&slot>=0){                        // solo posición: sin DOM
     const e=E[slot],pos=p.pos||{};
-    e.targetX=Number(pos.x)||0;e.targetZ=Number(pos.z)||0;e.y=Number(pos.y)||0;
+    e.targetX=Number(pos.x)||0;e.targetZ=Number(pos.z)||0;e.targetY=Number(pos.y)||0;
   }
 }
 function renderScoreboard(players){
@@ -360,13 +369,12 @@ function publishGameState(){
   if(!roomRef||!isHost)return;
   const Q=G.questions&&G.questions[G.round-1];
   roomRef.child("game").update({status:"playing",round:G.round,phase:G.ph,time:G.t,
-    question:Q?Q.q:"",options:G.displayOptions|| (Q?Q.o:[]),questions:G.questions||QS,
+    question:Q?Q.q:"",options:G.displayOptions|| (Q?Q.o:[]),
     tileOk:T.map(t=>!!t.ok),tileSolid:T.map(t=>!!t.solid),updatedAt:Date.now()});
 }
 function applyRemoteGameState(st){
   if(isHost||!st)return;
   try{
-    if(st.questions&&Array.isArray(st.questions)&&st.questions.length)G.questions=st.questions;
     if(st.status==="playing"){
       const nextKey=String(st.round)+String(st.phase);
       if(G.round!==st.round || lastStateKey!==nextKey){
@@ -385,7 +393,7 @@ function applyRemoteGameState(st){
     }else if(st.status==="waiting"){
       $("t2").textContent="Esperando al anfitrión";$("ov").classList.remove("off");
     }else if(st.status==="finished"){
-      G.ph="idle";$("t1").textContent="PARTIDA TERMINADA";$("t2").textContent="¡Gracias por jugar!";
+      if(G.ph!=="idle"){G.msg="";resetTiles();hud();}G.ph="idle";$("t1").textContent="PARTIDA TERMINADA";$("t2").textContent=winnerText()||"¡Gracias por jugar!";
       $("t3").textContent="La tabla muestra los puntos acumulados.";$("go").textContent="Esperando al anfitrión…";$("go").disabled=true;$("ov").classList.remove("off");
     }
   }catch(err){
@@ -437,6 +445,8 @@ function labQ(t,s,c){
   t.tex.needsUpdate=true;
 }
 T.forEach(t=>lab(t,''));
+function resetTiles(){T.forEach(t=>{t.solid=true;t.v=0;t.m.position.y=0;t.m.rotation.set(0,0,0);t.top.color.setHex(0xffffff);lab(t,'')})}
+function winnerText(){const a=Object.values(playersCache);if(!a.length)return'';const top=Math.max(...a.map(p=>Number(p.score)||0));const n=a.filter(p=>(Number(p.score)||0)===top).map(p=>p.name||'Jugador');return'🏆 '+(n.length>1?'Empate: ':'Ganador: ')+n.join(', ')+' ('+top+' pt'+(top===1?'':'s')+')'}
 function tileAt(x,z){const c=Math.floor(x/4+2),r=Math.floor(z/4+2);return c>=0&&c<4&&r>=0&&r<4?T[r*4+c]:null}
 // Jugadores
 const COL=[0xffd23f,0xff2a6d,0x05d9e8,0x00ff66,0x9d00ff,0xff6600,0x4d7cff,0xff9ecb];
@@ -447,7 +457,7 @@ add(new THREE.CylinderGeometry(.6,.6,.8,16),M,0,1.15,0);add(S,M,0,1.55,0,[.6,.6,
 function applyPlayerSkin(e,id){
   if(!e||!e.mesh||!id)return;
   let hash=0;for(let i=0;i<String(id).length;i++)hash=((hash<<5)-hash+String(id).charCodeAt(i))|0;
-  const color=COL[(hash>>>0)%COL.length];
+  const pc=playersCache[id],ci=pc&&pc.color!==undefined?Number(pc.color):(hash>>>0),color=COL[ci%COL.length];
   e.mesh.children.forEach((part,index)=>{
     if([0,1,2,5,6,9,10].includes(index)&&part.material&&part.material.color)part.material.color.setHex(color);
   });
@@ -462,11 +472,14 @@ function alive(){return E.filter(e=>e.alive).length}
 function hud(){const n=alive();$('al').textContent=n+(n===1?' vivo':' vivos');$('rd').textContent='Ronda '+G.round+'/'+MAXR+(G.msg?' · '+G.msg:'')}
 function say(q){G.msg=q||'';hud()}
 function kill(e){e.alive=false;e.mesh.visible=false;e.sh.visible=false;hud()}
+function spread(n){const pts=[];for(let k=0;k<n;k++){let p,tr=0;do{p={x:R(-6,6),z:R(-6,6)};tr++}while(tr<40&&pts.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<2));pts.push(p)}return pts}
 function startGame(){
  if(roomRef&&!isHost)return;
- G.round=0;G.questions=QS.slice();
- for(let i=G.questions.length-1;i>0;i--){const j=RI(0,i);[G.questions[i],G.questions[j]]=[G.questions[j],G.questions[i]]}
- E.forEach((e,i)=>{e.score=0;e.alive=i===0||playerOrder[i]!==undefined;e.mesh.visible=e.sh.visible=e.alive;e.x=R(-6,6);e.z=R(-6,6);e.y=0;e.vy=0;e.lockTileIndex=null});
+ G.round=0;G.qorder=QS.map((_,i)=>i);
+ for(let i=G.qorder.length-1;i>0;i--){const j=RI(0,i);[G.qorder[i],G.qorder[j]]=[G.qorder[j],G.qorder[i]]}
+ G.questions=G.qorder.map(i=>QS[i]);
+ if(roomRef)roomRef.child("game/qorder").set(G.qorder);
+ const sp=spread(E.length);E.forEach((e,i)=>{e.score=0;e.alive=i===0||playerOrder[i]!==undefined;e.mesh.visible=e.sh.visible=e.alive;e.x=sp[i].x;e.z=sp[i].z;e.y=0;e.vy=0;e.lockTileIndex=null});
  if(roomRef){roomRef.child("players").once("value").then(s=>{const ps=s.val()||{},stamp=Date.now(),updates={};Object.keys(ps).forEach(id=>{const slot=slotPlayerIds.indexOf(id),e=slot>=0?E[slot]:null;updates[id]={alive:true,score:0,"pos/x":e?e.x:R(-6,6),"pos/z":e?e.z:R(-6,6),"pos/y":0,respawnAt:stamp};});return roomRef.child("players").update(Object.fromEntries(Object.entries(updates).flatMap(([id,p])=>Object.entries(p).map(([k,v])=>[""+id+"/"+k,v]))));}).catch(err=>{console.error("No se pudo reiniciar la sala:",err);setStatus("No se pudieron reiniciar los jugadores: "+(err.message||err));});}
  $('ov').classList.add('off');startRound()
 }
@@ -491,15 +504,16 @@ async function completeRound(){
       const snap=await roomRef.child('players').once('value');
       const players=snap.val()||{};
       const updates={};
+      const pts=spread(Object.keys(players).length);let pi=0;
       Object.keys(players).forEach(id=>{
-        const slot=slotPlayerIds.indexOf(id);
+        const sp=pts[pi++],slot=slotPlayerIds.indexOf(id);
         const survived=slot>=0?!!E[slot].alive:players[id].alive!==false;
         const score=(Number(players[id].score)||0)+(survived?1:0);
-        updates[id]={...players[id],score,alive:true,pos:{x:R(-6,6),y:0,z:R(-6,6)},respawnAt:Date.now()};
+        updates[id]={...players[id],score,alive:true,pos:{x:sp.x,y:0,z:sp.z},respawnAt:Date.now()};
       });
       const flat={};Object.entries(updates).forEach(([id,p])=>{flat[id+'/score']=p.score;flat[id+'/alive']=true;flat[id+'/pos']=p.pos;flat[id+'/respawnAt']=p.respawnAt});
       await roomRef.child('players').update(flat);
-      Object.entries(updates).forEach(([id,p])=>{const slot=slotPlayerIds.indexOf(id);if(slot>=0){const e=E[slot];e.score=p.score;e.alive=true;e.x=p.pos.x;e.z=p.pos.z;e.targetX=e.x;e.targetZ=e.z;e.y=0;e.vy=0;e.on=true;e.respawnAt=p.respawnAt||Date.now();e.mesh.visible=e.sh.visible=true;}});
+      Object.entries(updates).forEach(([id,p])=>{const slot=slotPlayerIds.indexOf(id);if(slot>=0){const e=E[slot];e.score=p.score;e.alive=true;e.x=p.pos.x;e.z=p.pos.z;e.targetX=e.x;e.targetZ=e.z;e.y=0;e.targetY=0;e.vy=0;e.on=true;e.respawnAt=p.respawnAt||Date.now();e.mesh.visible=e.sh.visible=true;}});
     }catch(err){console.error('No se pudo actualizar la tabla de puntos:',err);setStatus('Aviso: no se pudieron guardar los puntos de esta ronda. '+(err.message||err));}
   }else if(!roomRef){
     E.forEach(e=>{if(e.alive)e.score=(Number(e.score)||0)+1;e.alive=true;e.x=R(-6,6);e.z=R(-6,6);e.y=0;e.vy=0;e.on=true;e.mesh.visible=e.sh.visible=true;});
@@ -510,10 +524,10 @@ async function completeRound(){
   startRound();
 }
 function end(){
-  completing=false;G.ph='idle';
+  completing=false;G.ph='idle';G.msg='';resetTiles();hud();
   if(roomRef&&isHost)roomRef.child('game').update({status:'finished',phase:'idle',round:G.round,updatedAt:Date.now()});
   $('t1').textContent='¡PARTIDA TERMINADA!';
-  $('t2').textContent='¡Has completado las '+G.round+' rondas!';
+  $('t2').textContent=winnerText()||'¡Has completado las '+G.round+' rondas!';
   $('t3').textContent='La tabla muestra los puntos acumulados por las rondas ganadas.';
   $('go').textContent='Jugar otra vez';$('go').disabled=!!roomRef&&!isHost;$('ov').classList.remove('off');
 }
@@ -535,13 +549,13 @@ if(G.ph==='warn')T.forEach(t=>{if(!t.ok)t.top.color.setHex(Math.floor(clk.elapse
 T.forEach(t=>{if(!t.solid){t.v+=30*dt;t.m.position.y-=t.v*dt;t.m.rotation.x+=dt*.6}});
 E.forEach((e,idx)=>{if(!e.alive){if(idx===0)jump=false;return}if(roomRef&&idx>0){
   if(e.targetX!==undefined){const ox=e.x,oz=e.z,k=1-Math.exp(-10*dt);e.x+=(e.targetX-e.x)*k;e.z+=(e.targetZ-e.z)*k;const mx=e.x-ox,mz=e.z-oz;if(Math.hypot(mx,mz)>.002)e.mesh.rotation.y=Math.atan2(mx,mz)}
-  e.mesh.position.set(e.x,e.y+.3,e.z);e.sh.position.set(e.x,.32,e.z);return}if(e.hold){if(G.ph==='warn'||G.ph==='drop'){e.y=0;e.vy=0;e.on=true;e.mesh.position.set(e.x,.3,e.z);e.sh.position.set(e.x,.32,e.z);return}e.hold=false;e.y=0;e.vy=0;e.on=true}let dx=0,dz=0,sp=7;
+  if(e.targetY!==undefined)e.y+=(e.targetY-e.y)*(1-Math.exp(-14*dt));const rt=tileAt(e.x,e.z);e.sh.visible=!!(rt&&rt.solid)&&e.y>-.2;e.mesh.position.set(e.x,e.y+.3,e.z);e.sh.position.set(e.x,.32,e.z);return}if(e.hold){if(G.ph==='warn'||G.ph==='drop'){e.y=0;e.vy=0;e.on=true;e.mesh.position.set(e.x,.3,e.z);e.sh.position.set(e.x,.32,e.z);return}e.hold=false;e.y=0;e.vy=0;e.on=true}let dx=0,dz=0,sp=7;
 if(!e.bot){if(G.ph!=='idle'){dx=(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+jx;dz=(K.KeyS||K.ArrowDown?1:0)-(K.KeyW||K.ArrowUp?1:0)+jz;
 const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l}if(jump&&e.on){e.vy=9.5;e.on=false}}jump=false}
 
 // En los últimos 3 segundos de respuesta, la casilla que pisa queda bloqueada:
 // límites invisibles impiden pasar a otra opción, pero permiten moverse dentro de ella.
-if(G.ph==='pick'&&G.t<=3&&e.lockTileIndex===null){
+if(((G.ph==='pick'&&G.t<=3)||G.ph==='warn'||G.ph==='drop')&&e.lockTileIndex===null){
   const current=tileAt(e.x,e.z);
   if(current)e.lockTileIndex=T.indexOf(current);
 }

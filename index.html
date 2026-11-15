@@ -14,8 +14,8 @@ input{-webkit-user-select:text;user-select:text}
 #hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:5}
 #card{display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--gold);border-radius:16px;padding:6px 16px}
 #card{max-width:min(94vw,440px)}#q{font-size:15px;line-height:1.3;text-align:center}#opts{display:grid;grid-template-columns:1fr 1fr;gap:5px;max-width:min(94vw,440px)}#opts div{font-size:13px;line-height:1.2;border-radius:10px;padding:4px 8px;color:#25093f;font-weight:700}
-#bar{display:flex;gap:10px;font-size:15px}
-#bar span{background:var(--card);border-radius:10px;padding:3px 12px}
+#bar{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 10px;font-size:15px}
+#bar span{background:var(--card);border-radius:10px;padding:3px 12px;white-space:nowrap}
 #scoreToggle{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);z-index:30;border:1px solid var(--gold);border-radius:10px;background:rgba(24,6,44,.92);color:var(--gold);font:12px "Fredoka",sans-serif;font-weight:700;padding:8px 10px;pointer-events:auto}
 #scoreboard{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 68px);z-index:30;background:rgba(24,6,44,.94);border:1px solid rgba(255,210,63,.75);border-radius:10px;padding:7px 10px;font-size:12px;line-height:1.45;max-width:min(88vw,300px);max-height:38vh;overflow:auto;pointer-events:auto}
 #scoreboard.open{display:block}
@@ -37,7 +37,13 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 @media(pointer:coarse){#joy,#jb{display:block}}
 #ntags .ntag{position:fixed;left:0;top:0;z-index:4;display:none;pointer-events:none;padding:2px 9px;border-radius:9px;background:rgba(24,6,44,.8);border:1px solid rgba(255,255,255,.4);font:700 12px "Fredoka",system-ui,sans-serif;color:#fff;white-space:nowrap;will-change:transform}
 #ntags .ntag.me{border-color:var(--cyan);color:var(--cyan)}
-@media(max-height:520px){#hud{gap:3px;padding-top:calc(env(safe-area-inset-top,0px) + 4px)}#card{padding:3px 10px;max-width:min(96vw,640px)}#q{font-size:11px;line-height:1.2}#opts{grid-template-columns:repeat(4,1fr);max-width:min(96vw,640px);gap:3px}#opts div{font-size:10px;line-height:1.15;padding:2px 5px}#bar{font-size:12px;gap:6px}#bar span{padding:1px 8px}#roomHud{display:none}}
+#qrBox{display:none;margin-top:12px;text-align:center}
+#qrBox.on{display:block}
+#qr{display:block;margin:0 auto;width:min(210px,58vw);height:auto;aspect-ratio:1/1;image-rendering:pixelated;border-radius:10px;background:#fff}
+#qrLabel{font-size:13px;color:#eadcff;margin:7px 0 6px}
+#copyLink{border:0;border-radius:12px;background:#ffd23f;color:#25093f;font:16px 'Titan One';padding:7px 16px;cursor:pointer}
+@media (min-aspect-ratio:13/10){#hud{right:auto;bottom:0;width:clamp(250px,36vw,420px);align-items:stretch;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 8px calc(env(safe-area-inset-left,0px) + 8px)}#card,#opts{max-width:none}#bar{flex-wrap:wrap;justify-content:center;gap:6px}#rd{flex:1 0 100%;text-align:center;white-space:normal}#tm,#al{flex:1;text-align:center}#roomHud{align-self:center}}
+@media (max-height:520px){#joy{transform:scale(.8);transform-origin:left bottom}#jb{transform:scale(.85);transform-origin:right bottom}#hud{gap:4px}#card{padding:4px 10px}#q{font-size:12px;line-height:1.2}#opts div{font-size:11px;line-height:1.15;padding:3px 6px}#bar{font-size:13px}#bar span{padding:2px 8px}}
 </style>
 </head>
 <body>
@@ -56,6 +62,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <button id="join" style="flex:1;border:0;border-radius:12px;background:#5cf2ff;color:#25093f;font:18px 'Titan One';padding:8px">Unirse</button>
 </div>
 <p id="onlineStatus" style="font-size:13px;color:#eadcff;margin:10px 0 0">Pulsa “Crear sala online”. Si hay un problema, aquí aparecerá el motivo.</p>
+<div id="qrBox"><canvas id="qr" width="1" height="1" aria-label="Código QR para unirse a la sala"></canvas><div id="qrLabel">Escanea el QR con la cámara para unirte</div><button id="copyLink" type="button">Copiar enlace</button></div>
 </div></div>
 <div id="ntags"></div>
 <div id="joy"><div id="knob"></div></div>
@@ -120,6 +127,108 @@ async function connectFirebase(){
   db=firebase.database();
   playerId=auth.currentUser.uid;
 }
+// ===== Generador de códigos QR (sin librerías externas): modo bytes, corrección M (o L si no cabe), versiones 1-6 =====
+const QR_SPEC={
+  M:{fmt:0,v:[[10,[[1,16]]],[16,[[1,28]]],[26,[[1,44]]],[18,[[2,32]]],[24,[[2,43]]],[16,[[4,27]]]]},
+  L:{fmt:1,v:[[7,[[1,19]]],[10,[[1,34]]],[15,[[1,55]]],[20,[[1,80]]],[26,[[1,108]]],[18,[[2,68]]]]}
+};
+const QR_ALIGN=[[],[6,18],[6,22],[6,26],[6,30],[6,34]];
+function qrMul(x,y){let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x}return z}
+function qrDivisor(n){const r=new Array(n).fill(0);r[n-1]=1;let root=1;for(let i=0;i<n;i++){for(let j=0;j<n;j++){r[j]=qrMul(r[j],root);if(j+1<n)r[j]^=r[j+1]}root=qrMul(root,2)}return r}
+function qrRemainder(data,div){const r=div.map(()=>0);for(const b of data){const f=b^r.shift();r.push(0);div.forEach((c,i)=>{r[i]^=qrMul(c,f)})}return r}
+function qrMatrix(text){
+  const bytes=Array.from(new TextEncoder().encode(String(text)));
+  let pick=null;
+  for(const lvl of ['M','L']){
+    for(let v=1;v<=6&&!pick;v++){
+      const [ec,blocks]=QR_SPEC[lvl].v[v-1],dataCw=blocks.reduce((a,[n,d])=>a+n*d,0);
+      if(bytes.length+2<=dataCw)pick={lvl,v,ec,blocks,dataCw};
+    }
+    if(pick)break;
+  }
+  if(!pick)return null;                                  // no cabe: la sala se comparte solo con el código
+  const {lvl,v,ec,blocks,dataCw}=pick,size=17+4*v;
+  // 1) bits de datos
+  const bits=[];const put=(val,len)=>{for(let i=len-1;i>=0;i--)bits.push((val>>>i)&1)};
+  put(4,4);put(bytes.length,8);bytes.forEach(b=>put(b,8));
+  put(0,Math.min(4,dataCw*8-bits.length));while(bits.length%8)bits.push(0);
+  const cw=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];cw.push(b)}
+  for(let pad=0xEC;cw.length<dataCw;pad^=0xEC^0x11)cw.push(pad);
+  // 2) bloques + Reed-Solomon + entrelazado
+  const div=qrDivisor(ec),dBlocks=[],eBlocks=[];let pos=0;
+  blocks.forEach(([n,d])=>{for(let k=0;k<n;k++){const blk=cw.slice(pos,pos+d);pos+=d;dBlocks.push(blk);eBlocks.push(qrRemainder(blk,div))}});
+  const out=[];const maxD=Math.max(...dBlocks.map(b=>b.length));
+  for(let i=0;i<maxD;i++)dBlocks.forEach(b=>{if(i<b.length)out.push(b[i])});
+  for(let i=0;i<ec;i++)eBlocks.forEach(b=>out.push(b[i]));
+  // 3) matriz y patrones de función
+  const mod=Array.from({length:size},()=>new Array(size).fill(false)),fn=Array.from({length:size},()=>new Array(size).fill(false));
+  const set=(x,y,d)=>{mod[y][x]=d;fn[y][x]=true};
+  for(let i=0;i<size;i++){set(6,i,i%2===0);set(i,6,i%2===0)}
+  const finder=(cx,cy)=>{for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const x=cx+dx,y=cy+dy,d=Math.max(Math.abs(dx),Math.abs(dy));if(x>=0&&x<size&&y>=0&&y<size)set(x,y,d!==2&&d!==4)}};
+  finder(3,3);finder(size-4,3);finder(3,size-4);
+  const ap=QR_ALIGN[v-1];
+  ap.forEach((ax,i)=>ap.forEach((ay,j)=>{if((i===0&&j===0)||(i===0&&j===ap.length-1)||(i===ap.length-1&&j===0))return;
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)set(ax+dx,ay+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1)}));
+  const fmt=mask=>{
+    const data=(QR_SPEC[lvl].fmt<<3)|mask;let rem=data;for(let i=0;i<10;i++)rem=(rem<<1)^((rem>>>9)*0x537);
+    const b=((data<<10)|rem)^0x5412,g=i=>((b>>>i)&1)!==0;
+    for(let i=0;i<=5;i++)set(8,i,g(i));set(8,7,g(6));set(8,8,g(7));set(7,8,g(8));for(let i=9;i<15;i++)set(14-i,8,g(i));
+    for(let i=0;i<8;i++)set(size-1-i,8,g(i));for(let i=8;i<15;i++)set(8,size-15+i,g(i));set(8,size-8,true);
+  };
+  fmt(0);
+  // 4) colocar los bits en zigzag
+  let bi=0;
+  for(let right=size-1;right>=1;right-=2){
+    if(right===6)right=5;
+    for(let vert=0;vert<size;vert++)for(let j=0;j<2;j++){
+      const x=right-j,y=(((right+1)&2)===0)?size-1-vert:vert;
+      if(!fn[y][x]&&bi<out.length*8){mod[y][x]=((out[bi>>>3]>>>(7-(bi&7)))&1)!==0;bi++}
+    }
+  }
+  // 5) máscara con menor penalización
+  const cond=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+  const apply=m=>{for(let y=0;y<size;y++)for(let x=0;x<size;x++)if(!fn[y][x]&&cond[m](x,y))mod[y][x]=!mod[y][x]};
+  const penalty=()=>{
+    let p=0,dark=0;const rows=mod.map(r=>r.map(b=>b?1:0));
+    const lines=[...rows,...Array.from({length:size},(_,x)=>rows.map(r=>r[x]))];
+    lines.forEach(l=>{let run=1;for(let i=1;i<=size;i++){if(i<size&&l[i]===l[i-1])run++;else{if(run>=5)p+=3+run-5;run=1}}
+      const s=l.join('');for(const pat of ['00001011101','10111010000']){let k=s.indexOf(pat);while(k>=0){p+=40;k=s.indexOf(pat,k+1)}}});
+    for(let y=0;y<size-1;y++)for(let x=0;x<size-1;x++){const c=rows[y][x];if(c===rows[y][x+1]&&c===rows[y+1][x]&&c===rows[y+1][x+1])p+=3}
+    rows.forEach(r=>r.forEach(c=>{dark+=c}));const tot=size*size;p+=(Math.ceil(Math.abs(dark*20-tot*10)/tot)-1)*10;return p};
+  let best=0,bestP=Infinity;
+  for(let m=0;m<8;m++){apply(m);fmt(m);const p=penalty();if(p<bestP){bestP=p;best=m}apply(m)}
+  apply(best);fmt(best);
+  return mod;
+}
+function drawQR(canvas,m){
+  const n=m.length,sc=6,q=4,px=(n+2*q)*sc;canvas.width=canvas.height=px;
+  const g=canvas.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,px,px);g.fillStyle='#000';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(m[y][x])g.fillRect((x+q)*sc,(y+q)*sc,sc,sc);
+}
+
+const QR_LABEL="Escanea el QR con la cámara para unirte";
+function roomLink(){return location.href.split(/[?#]/)[0]+"?sala="+roomId}
+function showRoomQR(){
+  const box=$("qrBox"),cv=$("qr");
+  try{
+    const m=qrMatrix(roomLink());
+    if(m){drawQR(cv,m);cv.style.display="block";$("qrLabel").textContent=QR_LABEL}
+    else{cv.style.display="none";$("qrLabel").textContent="Comparte el código "+roomId+" o copia el enlace"}
+    box.classList.add("on");
+  }catch(e){console.warn("No se pudo generar el QR:",e);box.classList.remove("on")}
+}
+$("copyLink").addEventListener("click",async()=>{
+  const link=roomLink(),lb=$("qrLabel");
+  try{
+    if(!(navigator.clipboard&&navigator.clipboard.writeText))throw new Error("sin portapapeles");
+    await navigator.clipboard.writeText(link);
+    lb.textContent="¡Enlace copiado!";
+    setTimeout(()=>{lb.textContent=QR_LABEL},2000);
+  }catch(e){window.prompt("Copia el enlace de la sala:",link)}
+});
+// Si abrieron un enlace de invitación (?sala=CODIGO), se rellena el código de sala
+{const sr=(new URLSearchParams(location.search).get("sala")||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
+ if(/^[A-Z0-9]{6}$/.test(sr)){$("roomCode").value=sr;setStatus("Te invitaron a la sala "+sr+". Escribe tu nombre y pulsa Unirse.")}}
 function makeRoomCode(){
   // 32 caracteres sin I/O/0/1: seis caracteres dan más de mil millones de códigos.
   const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -224,6 +333,7 @@ function enterOnlineRoom(){
   $("join").disabled=true;
   $("roomCode").disabled=true;
   $("onlineStatus").textContent="Conectado · "+playerName+" · "+roomId;
+  showRoomQR();
   $("ov").classList.remove("off");
   const checkHost=()=>{
     if(!playersCache[""+playerId]) return;
@@ -428,8 +538,22 @@ const sc=new THREE.Scene();sc.background=new THREE.Color(0x2d0b4e);
 const cam=new THREE.PerspectiveCamera(45,1,.1,200);
 const rn=new THREE.WebGLRenderer({antialias:true});rn.setPixelRatio(Math.min(devicePixelRatio,2));
 rn.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%';document.body.prepend(rn.domElement);
-function rs(){const a=innerWidth/innerHeight,k=Math.max(1,.85/a);rn.setSize(innerWidth,innerHeight,false);cam.aspect=a;cam.position.set(0,26*k,20*k);cam.lookAt(0,0,0);cam.updateProjectionMatrix();cam.updateMatrixWorld()}
+// Encuadre: el tablero (y las etiquetas de nombre) deben caber en el área que NO tapa el panel de preguntas
+const BPTS=[[-8.4,0,-8.4],[8.4,0,-8.4],[8.4,0,8.4],[-8.4,0,8.4],[-7,3.6,-8.4],[7,3.6,-8.4]];
+function projPx(x,y,z,k,W,H){const cy=26*k,cz=20*k,fl=Math.hypot(cy,cz),fy=-cy/fl,fz=-cz/fl,ry=y-cy,rz=z-cz,d=ry*fy+rz*fz,th=Math.tan(22.5*Math.PI/180);
+  return[(x/(d*th*(W/H))*.5+.5)*W,(-((-fz)*ry+fy*rz)/(d*th)*.5+.5)*H]}
+function frameCam(W,H){
+  const hr=document.getElementById('hud').getBoundingClientRect(),side=(typeof matchMedia==='function'?matchMedia('(min-aspect-ratio: 13/10)').matches:W/H>=1.3)&&hr.right<W*.6,pad=8,bot=44,touch=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+  let fx,fy,fw,fh;
+  if(side){fx=hr.right+pad;fy=pad;fw=W-fx-pad-(touch?118:0);fh=H-fy-bot}else{fx=pad;fy=hr.bottom+pad;fw=W-2*pad;fh=H-fy-(touch?148:bot)}
+  fw=Math.max(fw,120);fh=Math.max(fh,120);
+  const bb=k=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;BPTS.forEach(p=>{const q=projPx(p[0],p[1],p[2],k,W,H);x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])});return{x0,y0,x1,y1,w:x1-x0,h:y1-y0}};
+  let k=1;for(let i=0;i<6;i++){const b=bb(k);k=Math.min(4,Math.max(.5,k*Math.max(b.w/fw,b.h/fh)))}
+  const b=bb(k),sx=fx+fw/2-(b.x0+b.x1)/2,sy=fy+fh/2-(b.y0+b.y1)/2;
+  return(isFinite(k)&&isFinite(sx)&&isFinite(sy))?{k,sx,sy}:{k:Math.max(1,.85/(W/H)),sx:0,sy:0}}
+function rs(){const W=innerWidth,H=innerHeight,f=frameCam(W,H);rn.setSize(W,H,false);cam.aspect=W/H;cam.position.set(0,26*f.k,20*f.k);cam.lookAt(0,0,0);cam.setViewOffset(W,H,-f.sx,-f.sy,W,H);cam.updateProjectionMatrix();cam.updateMatrixWorld()}
 addEventListener('resize',rs);rs();
+if(typeof ResizeObserver==='function')new ResizeObserver(()=>rs()).observe($('hud'));
 sc.add(new THREE.AmbientLight(0xffffff,.75));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(15,40,20);sc.add(dl);
 const slime=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x00ff66,roughness:.1,transparent:true,opacity:.85}));
 slime.rotation.x=-Math.PI/2;slime.position.y=-12;sc.add(slime);

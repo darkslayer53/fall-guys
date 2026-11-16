@@ -21,7 +21,8 @@ input{-webkit-user-select:text;user-select:text}
 #scoreboard.open{display:block}
 #scoreboard strong{color:var(--gold)}.score-row{display:flex;justify-content:space-between;gap:18px;white-space:nowrap}
 #tm{color:var(--cyan);min-width:2.2em;text-align:center}
-#ov{position:fixed;inset:0;z-index:20;display:flex;background:rgba(10,0,24,.78);padding:16px;overflow-y:auto;touch-action:pan-y}
+#scoreToggle:not(.on){display:none}
+#ov{position:fixed;inset:0;z-index:20;display:flex;background:rgba(10,0,24,.78);padding:16px 16px 72px;overflow-y:auto;touch-action:pan-y}
 #ov.off{display:none}
 #bx{max-width:360px;margin:auto;text-align:center;background:linear-gradient(#4a1a80,#1d0a3a);border:4px solid var(--gold);border-radius:24px;padding:22px}
 h1{margin:0;font-size:38px;line-height:1.05;color:var(--gold);text-shadow:0 4px 0 #000}
@@ -37,6 +38,32 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 @media(pointer:coarse){#joy,#jb{display:block}}
 #ntags .ntag{position:fixed;left:0;top:0;z-index:4;display:none;pointer-events:none;padding:2px 9px;border-radius:9px;background:rgba(24,6,44,.8);border:1px solid rgba(255,255,255,.4);font:700 12px "Fredoka",system-ui,sans-serif;color:#fff;white-space:nowrap;will-change:transform}
 #ntags .ntag.me{border-color:var(--cyan);color:var(--cyan)}
+#rules{text-align:left;background:rgba(255,255,255,.06);border:2px solid rgba(255,210,63,.45);border-radius:14px;padding:11px 13px;margin:0 0 14px;font-size:13px;line-height:1.4;color:#eadcff}
+#rules h3{margin:0 0 6px;text-align:center;font:400 21px 'Titan One',system-ui,sans-serif;color:var(--gold)}
+#rules h4{margin:10px 0 4px;font:400 15px 'Titan One',system-ui,sans-serif;color:var(--cyan)}
+#rules p{margin:0 0 6px}
+#rules ol{margin:0;padding-left:20px}
+#rules li{margin:0 0 5px}
+#rules b{color:#fff}
+#rules .rulesEnd{margin:10px 0 0;text-align:center;font:400 16px 'Titan One',system-ui,sans-serif;color:var(--gold)}
+#solBtn{display:none;width:100%;margin-top:9px;border:0;border-bottom:5px solid #2aa8b6;border-radius:16px;background:var(--cyan);color:#25093f;font:19px 'Titan One',system-ui,sans-serif;padding:12px;cursor:pointer}
+#solBtn.on{display:block}
+#solBtn:active{transform:translateY(2px)}
+#solPanel{position:fixed;inset:0;z-index:40;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#0e0320;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)}
+#solPanel.on{display:block}
+#solIn{max-width:600px;margin:0 auto}
+#solBar{position:sticky;top:0;z-index:1;padding:4px 0 10px;background:linear-gradient(#0e0320 65%,rgba(14,3,32,0))}
+#solBack,#solBack2{border:0;border-radius:12px;background:var(--cyan);color:#25093f;font:17px 'Titan One',system-ui,sans-serif;padding:8px 16px;cursor:pointer}
+#solBack2{display:block;margin:16px auto 0}
+#solHeading{margin:0 0 4px;text-align:center;font:400 27px 'Titan One',system-ui,sans-serif;color:var(--gold);text-shadow:0 3px 0 #000}
+.solSub{margin:0 0 10px;text-align:center;font-size:13px;color:#eadcff}
+.solItem{background:rgba(255,255,255,.07);border:2px solid rgba(255,210,63,.55);border-radius:14px;padding:11px 13px;margin:10px 0;text-align:left}
+.solHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
+.solNum{background:var(--cyan);color:#25093f;border-radius:999px;font:700 11px 'Fredoka',system-ui,sans-serif;padding:2px 9px}
+.solTitle{font:400 17px 'Titan One',system-ui,sans-serif;color:var(--gold)}
+.solQ{margin:0 0 7px;font-size:12px;line-height:1.35;color:#c9b6ee}
+.solD{margin:0 0 8px;font-size:14px;line-height:1.45}
+.solR{font-size:14px;background:rgba(61,255,136,.14);border:1px solid rgba(61,255,136,.6);border-radius:10px;padding:6px 10px}
 #qrBox{display:none;margin-top:12px;text-align:center}
 #qrBox.on{display:block}
 #qr{display:block;margin:0 auto;width:min(210px,58vw);height:auto;aspect-ratio:1/1;image-rendering:pixelated;border-radius:10px;background:#fff}
@@ -55,14 +82,37 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <div id="ov"><div id="bx">
 <h1 id="t1">GRÁFICOS AL LÍMITE</h1><h2 id="t2">Preguntas y casillas</h2>
 <p id="t3">Entra a una sala o crea una nueva. El primer jugador será el anfitrión. ¡Juega con personas desde cualquier lugar!<br>WASD o flechas para moverte, espacio para saltar.</p>
+<section id="rules" aria-label="Reglas del juego">
+<h3>¿CÓMO JUGAR?</h3>
+<p><b>Objetivo:</b> Responder correctamente las 15 preguntas de gráficos estadísticos y conseguir la mayor cantidad de puntos posible.</p>
+<h4>Reglas</h4>
+<ol>
+<li><b>Únete a una partida:</b> Puedes crear una sala o ingresar a una usando el código de otro jugador.</li>
+<li><b>Lee la pregunta:</b> En cada ronda aparecerá una pregunta con cuatro alternativas (A, B, C y D).</li>
+<li><b>Busca tu respuesta:</b> Observa las letras de las plataformas y muévete hacia la que corresponde a la alternativa correcta.</li>
+<li><b>¡No te quedes quieto!</b> Cuando termine el tiempo, las plataformas incorrectas comenzarán a caer.</li>
+<li><b>Evita caer:</b> Si estás sobre una plataforma incorrecta, caerás y perderás la oportunidad de ganar el punto de esa ronda.</li>
+<li><b>Gana puntos:</b> Cada jugador que sobreviva a una ronda obtiene 1 punto.</li>
+<li><b>Continúa jugando:</b> Al terminar cada ronda, los jugadores reaparecen y comienza la siguiente pregunta.</li>
+</ol>
+<h4>¿Cómo se gana?</h4>
+<p>Después de las 15 rondas, gana el jugador que haya acumulado más puntos.</p>
+<p class="rulesEnd">¡Piensa rápido, elige bien y evita caer!</p>
+</section>
 <input id="playerName" maxlength="16" placeholder="Tu nombre" value="Jugador" style="box-sizing:border-box;width:100%;padding:12px;border-radius:12px;border:2px solid #ffd23f;margin:0 0 9px;font:700 16px Fredoka;text-align:center">
 <button id="go">Crear sala online</button>
+<button id="solBtn" type="button">📘 Métodos de resolución</button>
 <div style="display:flex;gap:7px;margin-top:9px">
 <input id="roomCode" maxlength="6" placeholder="Código" style="min-width:0;width:50%;padding:12px;border-radius:12px;border:2px solid #5cf2ff;font:700 16px Fredoka;text-align:center;text-transform:uppercase">
 <button id="join" style="flex:1;border:0;border-radius:12px;background:#5cf2ff;color:#25093f;font:18px 'Titan One';padding:8px">Unirse</button>
 </div>
 <p id="onlineStatus" style="font-size:13px;color:#eadcff;margin:10px 0 0">Pulsa “Crear sala online”. Si hay un problema, aquí aparecerá el motivo.</p>
 <div id="qrBox"><canvas id="qr" width="1" height="1" aria-label="Código QR para unirse a la sala"></canvas><div id="qrLabel">Escanea el QR con la cámara para unirte</div><button id="copyLink" type="button">Copiar enlace</button></div>
+</div></div>
+<div id="solPanel" role="dialog" aria-modal="true" aria-label="Métodos de resolución"><div id="solIn">
+<div id="solBar"><button id="solBack" type="button">← Volver</button></div>
+<h2 id="solHeading">MÉTODOS DE RESOLUCIÓN</h2><p id="solSub" class="solSub"></p><div id="solList"></div>
+<button id="solBack2" type="button">← Volver</button>
 </div></div>
 <div id="ntags"></div>
 <div id="joy"><div id="knob"></div></div>
@@ -228,7 +278,7 @@ $("copyLink").addEventListener("click",async()=>{
 });
 // Si abrieron un enlace de invitación (?sala=CODIGO), se rellena el código de sala
 {const sr=(new URLSearchParams(location.search).get("sala")||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
- if(/^[A-Z0-9]{6}$/.test(sr)){$("roomCode").value=sr;setStatus("Te invitaron a la sala "+sr+". Escribe tu nombre y pulsa Unirse.")}}
+ if(/^[A-Z0-9]{6}$/.test(sr)){$("roomCode").value=sr;setStatus("Te invitaron a la sala "+sr+". Escribe tu nombre y pulsa Unirse.");setTimeout(()=>{try{$("roomCode").scrollIntoView({block:"center"})}catch(e){}},60)}}
 function makeRoomCode(){
   // 32 caracteres sin I/O/0/1: seis caracteres dan más de mil millones de códigos.
   const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -333,7 +383,7 @@ function enterOnlineRoom(){
   $("join").disabled=true;
   $("roomCode").disabled=true;
   $("onlineStatus").textContent="Conectado · "+playerName+" · "+roomId;
-  showRoomQR();
+  showRoomQR();$("rules").style.display="none";$("scoreToggle").classList.add("on");
   $("ov").classList.remove("off");
   const checkHost=()=>{
     if(!playersCache[""+playerId]) return;
@@ -488,6 +538,7 @@ function publishGameState(){
 function applyRemoteGameState(st){
   if(isHost||!st)return;
   try{
+    if(Array.isArray(st.qorder)&&st.qorder.length===QS.length)G.qorder=st.qorder.slice();
     if(st.status==="playing"){
       const nextKey=String(st.round)+String(st.phase);
       if(G.round!==st.round || lastStateKey!==nextKey){
@@ -501,13 +552,13 @@ function applyRemoteGameState(st){
         if(Array.isArray(st.tileSolid))st.tileSolid.slice(0,T.length).forEach((v,i)=>{if(T[i])T[i].solid=!!v});
         if(st.phase==="pick"){T.forEach(tile=>{tile.m.position.y=0;tile.m.rotation.set(0,0,0);tile.v=0;tile.top.color.setHex(0xffffff)});E[0].lockTileIndex=null;E[0].y=0;E[0].vy=0;E[0].on=true;E[0].hold=false;}
         lastStateKey=nextKey;
-        $("ov").classList.add("off");say({pick:"Corre a tu respuesta",warn:"¡Cuidado!",drop:"¡Se caen!"}[st.phase]||"");
+        $("ov").classList.add("off");closeSol();$("solBtn").classList.remove("on");say({pick:"Corre a tu respuesta",warn:"¡Cuidado!",drop:"¡Se caen!"}[st.phase]||"");
       }else G.t=Number(st.time)||G.t;
     }else if(st.status==="waiting"){
-      $("t2").textContent="Esperando al anfitrión";$("ov").classList.remove("off");
+      $("t2").textContent="Esperando al anfitrión";$("solBtn").classList.remove("on");$("ov").classList.remove("off");
     }else if(st.status==="finished"){
       if(G.ph!=="idle"){G.msg="";resetTiles();hud();}G.ph="idle";$("t1").textContent="PARTIDA TERMINADA";$("t2").textContent=winnerText()||"¡Gracias por jugar!";
-      $("t3").textContent="La tabla muestra los puntos acumulados.";$("go").textContent="Esperando al anfitrión…";$("go").disabled=true;$("ov").classList.remove("off");
+      $("t3").textContent="La tabla muestra los puntos acumulados.";$("go").textContent="Esperando al anfitrión…";$("go").disabled=true;$("solBtn").classList.add("on");$("ov").classList.remove("off");
     }
   }catch(err){
     console.error("Error al sincronizar la ronda remota:",err);
@@ -533,6 +584,27 @@ const QS=[
 {q:'Un gráfico de líneas muestra el crecimiento semanal: semana 1: 4 cm, semana 2: 7 cm, semana 3: 11 cm y semana 4: 16 cm. ¿En qué intervalo aumentó más?',o:['De la semana 3 a la 4','De la semana 1 a la 2','De la semana 2 a la 3','En todos por igual'],t:30},
 {q:'Un gráfico de dispersión muestra una tendencia ascendente entre horas de estudio y calificaciones. ¿Qué interpretación es la más adecuada?',o:['En general, a más horas de estudio se observan calificaciones más altas','Estudiar más siempre garantiza la nota máxima','No existe ninguna relación entre las variables','A más horas de estudio, menores calificaciones'],t:30}
 ];
+// Métodos de resolución (uno por pregunta de QS, en el mismo orden)
+const SOL=[{"t": "Diferencia de ventas","d": "Se restan las ventas del lunes a las del jueves: 50 − 25 = 25.","r": "25 unidades"},{"t": "Porcentaje de estudiantes","d": "Se calcula el 25% de 100: 100 × 0,25 = 25.","r": "25 estudiantes"},{"t": "Aumento de temperatura","d": "Se comparan los cambios: lunes a martes subió 4°, martes a miércoles bajó 2° y miércoles a jueves subió 6°.","r": "de miércoles a jueves"},{"t": "Diferencia de puntajes","d": "Se toma el puntaje mayor y se le resta el menor: 50 − 30 = 20.","r": "20 puntos"},{"t": "Porcentajes del gráfico circular","d": "Se suma alimentación y transporte: 40% + 25% = 65%.","r": "65%"},{"t": "Cantidad de agua","d": "Se revisa los valores de cada día y el más alto fue 180 litros.","r": "día 4"},{"t": "Pictograma","d": "Se suman los símbolos: 4 + 3 = 7. Como cada uno vale 5 libros, se multiplica 7 × 5 = 35.","r": "35 libros"},{"t": "Diferencia entre notas","d": "A la nota de la prueba 1 (5) se le suma un punto: 5 + 1 = 6.","r": "prueba 2"},{"t": "Preferencia musical","d": "Se suman los porcentajes de rock y reguetón: 30% + 20% = 50%. Después se calcula la mitad de 200: 200 × 0,50 = 100.","r": "100 personas"},{"t": "Distancia del ciclista","d": "La distancia aumenta 15 km por hora. Entonces se suma 15 a la hora 4: 55 + 15 = 70.","r": "70 km"},{"t": "Porcentaje por edad","d": "Suma las personas: 8 + 15 + 12 + 5 = 40. Luego calcula 15 ÷ 40 × 100 = 37,5%.","r": "37,5%"},{"t": "Disminución de producción","d": "Compara los meses y vi que bajó de febrero a marzo. La diferencia es 150 − 135 = 15.","r": "entre febrero y marzo"},{"t": "Medios de transporte","d": "Suma “bicicleta y caminando”: 20% + 10% = 30%. Después calculé 400 × 0,30 = 120.","r": "120 estudiantes"},{"t": "Mayor crecimiento","d": "Calcula cuánto aumentó cada semana: de la 1 a la 2 subió 3 cm; de la 2 a la 3 subió 4 cm; y de la 3 a la 4 subió 5 cm.","r": "de la semana 3 a la 4"},{"t": "Gráfico de dispersión","d": "La tendencia es positiva porque, en general, cuando aumentan las horas de estudio también aumentan las calificaciones.","r": "tendencia positiva"}];
+function openSol(){
+  const list=$("solList");list.textContent="";
+  const played=Array.isArray(G.qorder)&&G.qorder.length===QS.length,ord=played?G.qorder:QS.map((_,i)=>i);
+  $("solSub").textContent=played?"Así se resuelve cada pregunta, en el orden en que aparecieron en tu partida.":"Así se resuelve cada pregunta del juego.";
+  const mk=(tag,cls,txt)=>{const e=document.createElement(tag);e.className=cls;if(txt!==undefined)e.textContent=txt;return e};
+  ord.forEach((qi,n)=>{
+    const s=SOL[qi],q=QS[qi];if(!s||!q)return;
+    const it=mk("div","solItem"),hd=mk("div","solHead"),rr=mk("div","solR","✔ Respuesta correcta: ");
+    hd.appendChild(mk("span","solNum","Ronda "+(n+1)));hd.appendChild(mk("span","solTitle",s.t));
+    const b=document.createElement("b");b.textContent=s.r;rr.appendChild(b);
+    it.appendChild(hd);it.appendChild(mk("div","solQ",q.q));it.appendChild(mk("div","solD",s.d));it.appendChild(rr);
+    list.appendChild(it);
+  });
+  const pn=$("solPanel");pn.classList.add("on");pn.scrollTop=0;
+}
+function closeSol(){const pn=$("solPanel");if(pn&&pn.classList.contains("on"))pn.classList.remove("on")}
+$("solBtn").addEventListener("click",openSol);
+$("solBack").addEventListener("click",closeSol);$("solBack2").addEventListener("click",closeSol);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSol()});
 if(typeof THREE==="undefined"){showFatalError("No se pudo cargar el motor gráfico Three.js. Comprueba tu conexión a internet y recarga la página.");throw new Error("Three.js no está disponible");}
 const sc=new THREE.Scene();sc.background=new THREE.Color(0x2d0b4e);
 const cam=new THREE.PerspectiveCamera(45,1,.1,200);
@@ -616,6 +688,7 @@ function kill(e){e.alive=false;e.mesh.visible=false;e.sh.visible=false;hud()}
 function spread(n){const pts=[];for(let k=0;k<n;k++){let p,tr=0;do{p={x:R(-6,6),z:R(-6,6)};tr++}while(tr<40&&pts.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<2));pts.push(p)}return pts}
 function startGame(){
  if(roomRef&&!isHost)return;
+ closeSol();$('solBtn').classList.remove('on');
  G.round=0;G.qorder=QS.map((_,i)=>i);
  for(let i=G.qorder.length-1;i>0;i--){const j=RI(0,i);[G.qorder[i],G.qorder[j]]=[G.qorder[j],G.qorder[i]]}
  G.questions=G.qorder.map(i=>QS[i]);
@@ -670,7 +743,7 @@ function end(){
   $('t1').textContent='¡PARTIDA TERMINADA!';
   $('t2').textContent=winnerText()||'¡Has completado las '+G.round+' rondas!';
   $('t3').textContent='La tabla muestra los puntos acumulados por las rondas ganadas.';
-  $('go').textContent='Jugar otra vez';$('go').disabled=!!roomRef&&!isHost;$('ov').classList.remove('off');
+  $('go').textContent='Jugar otra vez';$('go').disabled=!!roomRef&&!isHost;$('solBtn').classList.add('on');$('ov').classList.remove('off');
 }
 // Controles
 const K={};let jx=0,jz=0,jump=false;

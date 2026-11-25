@@ -87,12 +87,27 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #copyLink{border:0;border-radius:12px;background:#ffd23f;color:#25093f;font:16px 'Titan One';padding:7px 16px;cursor:pointer}
 @media (min-aspect-ratio:13/10){#hud{right:auto;bottom:0;width:clamp(250px,36vw,420px);align-items:stretch;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 8px calc(env(safe-area-inset-left,0px) + 8px)}#card,#opts{max-width:none}#bar{flex-wrap:wrap;justify-content:center;gap:6px}#rd{flex:1 0 100%;text-align:center;white-space:normal}#tm,#al{flex:1;text-align:center}#roomHud{align-self:center}}
 @media (max-height:520px){#pb{scale:.85;transform-origin:right bottom}@media(pointer:coarse){#pb{right:116px;bottom:calc(env(safe-area-inset-bottom,0px) + 50px)}}#joy{transform:scale(.8);transform-origin:left bottom}#jb{scale:.85;transform-origin:right bottom}#hud{gap:4px}#card{padding:4px 10px}#q{font-size:12px;line-height:1.2}#opts div{font-size:11px;line-height:1.15;padding:3px 6px}#bar{font-size:13px}#bar span{padding:2px 8px}}
+/* Gráficos de las preguntas */
+#card{flex-direction:column;gap:5px}
+#chart{width:100%;min-width:min(84vw,260px);background:rgba(255,255,255,.06);border-radius:10px}
+#chart:empty,#chart.off{display:none}
+#chartToggle{pointer-events:auto;border:1px solid var(--cyan);border-radius:10px;background:rgba(24,6,44,.85);color:var(--cyan);font:700 14px "Fredoka",sans-serif;padding:3px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}#chartToggle:active{scale:.94}#chartToggle:not(.on){display:none}
+#chart svg{display:block;width:100%;height:auto}
+svg.chsvg text{font-family:"Fredoka",system-ui,sans-serif;font-size:9px;fill:#eadcff}
+svg.chsvg .ct{font-size:10px;font-weight:700;fill:#ffd23f}
+svg.chsvg .cv{font-size:9px;font-weight:700;fill:#fff}
+svg.chsvg .al{font-size:8px;fill:#b9a5e8}
+svg.chsvg .pl{font-size:9px;font-weight:700;fill:#25093f}
+svg.chsvg .gl{stroke:rgba(255,255,255,.14);stroke-width:.6}
+svg.chsvg .ax{stroke:rgba(255,255,255,.5);stroke-width:1}
+.solChart{background:rgba(255,255,255,.06);border-radius:10px;margin:0 0 8px}
+.solChart svg{display:block;width:100%;max-width:440px;height:auto;margin:0 auto}
 </style>
 </head>
 <body>
 <div id="hud">
-<div id="card"><div id="q">Prepárate</div></div><div id="opts"></div>
-<div id="bar"><span id="rd">Ronda 0/15</span><span id="tm">0</span><span id="al">1 vivo</span><button id="scoreToggle" type="button" aria-expanded="false">🏆 Puntos</button></div><div id="roomHud" style="font-size:12px;background:rgba(24,6,44,.72);padding:3px 10px;border-radius:9px"></div></div>
+<div id="card"><div id="q">Prepárate</div><div id="chart"></div></div><div id="opts"></div>
+<div id="bar"><span id="rd">Ronda 0/15</span><span id="tm">0</span><span id="al">1 vivo</span><button id="chartToggle" type="button" aria-pressed="true">📊 Ocultar gráfico</button><button id="scoreToggle" type="button" aria-expanded="false">🏆 Puntos</button></div><div id="roomHud" style="font-size:12px;background:rgba(24,6,44,.72);padding:3px 10px;border-radius:9px"></div></div>
 <div id="scoreboard" aria-hidden="true"><strong>Tabla de puntos</strong><div id="scoreRows">Aún no hay puntuaciones</div></div>
 <div id="ov"><div id="bx">
 <h1 id="t1">GRÁFICOS AL LÍMITE</h1><h2 id="t2">Preguntas y casillas</h2>
@@ -567,7 +582,7 @@ function applyRemoteGameState(st){
         G.round=Number(st.round)||G.round;G.ph=st.phase||"idle";G.t=Number(st.time)||0;
         const optKey=st.round+'|'+st.question+'|'+JSON.stringify(st.options||[]);
         if(optKey!==lastOptKey){lastOptKey=optKey;
-        if(st.question!==undefined)$("q").textContent=String(st.question);
+        if(st.question!==undefined){$("q").textContent=String(st.question);showChart(String(st.question))}
         if(Array.isArray(st.options)){
           $("opts").innerHTML=st.options.slice(0,4).map((v,i)=>'<div style="background:'+QC[i]+'">'+"ABCD"[i]+') '+escapeHTML(v)+'</div>').join("");
           G.displayOptions=st.options.slice(0,4);
@@ -610,6 +625,94 @@ const QS=[
 ];
 // Métodos de resolución (uno por pregunta de QS, en el mismo orden)
 const SOL=[{"t": "Diferencia de ventas","d": "Se restan las ventas del lunes a las del jueves: 50 − 25 = 25.","r": "25 unidades"},{"t": "Porcentaje de estudiantes","d": "Se calcula el 25% de 100: 100 × 0,25 = 25.","r": "25 estudiantes"},{"t": "Aumento de temperatura","d": "Se comparan los cambios: lunes a martes subió 4°, martes a miércoles bajó 2° y miércoles a jueves subió 6°.","r": "de miércoles a jueves"},{"t": "Diferencia de puntajes","d": "Se toma el puntaje mayor y se le resta el menor: 50 − 30 = 20.","r": "20 puntos"},{"t": "Porcentajes del gráfico circular","d": "Se suma alimentación y transporte: 40% + 25% = 65%.","r": "65%"},{"t": "Cantidad de agua","d": "Se revisa los valores de cada día y el más alto fue 180 litros.","r": "día 4"},{"t": "Pictograma","d": "Se suman los símbolos: 4 + 3 = 7. Como cada uno vale 5 libros, se multiplica 7 × 5 = 35.","r": "35 libros"},{"t": "Diferencia entre notas","d": "A la nota de la prueba 1 (5) se le suma un punto: 5 + 1 = 6.","r": "prueba 2"},{"t": "Preferencia musical","d": "Se suman los porcentajes de rock y reguetón: 30% + 20% = 50%. Después se calcula la mitad de 200: 200 × 0,50 = 100.","r": "100 personas"},{"t": "Distancia del ciclista","d": "La distancia aumenta 15 km por hora. Entonces se suma 15 a la hora 4: 55 + 15 = 70.","r": "70 km"},{"t": "Porcentaje por edad","d": "Suma las personas: 8 + 15 + 12 + 5 = 40. Luego calcula 15 ÷ 40 × 100 = 37,5%.","r": "37,5%"},{"t": "Disminución de producción","d": "Compara los meses y vi que bajó de febrero a marzo. La diferencia es 150 − 135 = 15.","r": "entre febrero y marzo"},{"t": "Medios de transporte","d": "Suma “bicicleta y caminando”: 20% + 10% = 30%. Después calculé 400 × 0,30 = 120.","r": "120 estudiantes"},{"t": "Mayor crecimiento","d": "Calcula cuánto aumentó cada semana: de la 1 a la 2 subió 3 cm; de la 2 a la 3 subió 4 cm; y de la 3 a la 4 subió 5 cm.","r": "de la semana 3 a la 4"},{"t": "Gráfico de dispersión","d": "La tendencia es positiva porque, en general, cuando aumentan las horas de estudio también aumentan las calificaciones.","r": "tendencia positiva"}];
+// ===== Gráfico de cada pregunta (mismo orden que QS) =====
+const CH_COL=['#5cf2ff','#ffd23f','#ff2a6d','#5fe39a','#b58cff'],CH_HL='#ff9f1c';
+const CHARTS=[
+{t:'bar',title:'Ventas de la semana',cats:['Lunes','Martes','Miércoles','Jueves'],vals:[25,40,35,50],max:60,step:20,yl:'Unidades',hl:[0,3]},
+{t:'pie',title:'Preferencia musical (100 estudiantes)',cats:['Música','Otras categorías'],vals:[25,75],hl:[0]},
+{t:'line',title:'Temperatura diaria',cats:['Lunes','Martes','Miércoles','Jueves'],vals:[18,22,20,26],min:16,max:28,step:4,yl:'Temperatura (°)',hl:[2,3]},
+{t:'bar',title:'Puntaje por equipo',cats:['Equipo 1','Equipo 2','Equipo 3','Equipo 4'],vals:[35,50,45,30],max:60,step:20,yl:'Puntos',hl:[1,3]},
+{t:'pie',title:'Distribución del gasto',cats:['Alimentación','Transporte','Ocio','Ahorro'],vals:[40,25,20,15],hl:[0,1]},
+{t:'line',title:'Agua del depósito',cats:['Día 1','Día 2','Día 3','Día 4','Día 5'],vals:[100,150,120,180,160],min:0,max:200,step:100,yl:'Litros',hl:[3]},
+{t:'pict',title:'Libros de cada persona',cats:['Ana','Pedro'],vals:[4,3],per:5,unit:'libros'},
+{t:'bar',title:'Notas por prueba',cats:['Prueba 1','Prueba 2','Prueba 3','Prueba 4','Prueba 5'],vals:[5,6,5.5,7,6.5],max:8,step:2,yl:'Nota',hl:[0,1]},
+{t:'pie',title:'Música favorita (200 personas)',cats:['Pop','Rock','Reguetón','Otros'],vals:[35,30,20,15],hl:[1,2]},
+{t:'line',title:'Distancia del ciclista',cats:['Hora 1','Hora 2','Hora 3','Hora 4','Hora 5'],vals:[10,25,40,55],min:0,max:80,step:40,yl:'Kilómetros',proj:70,hl:[3]},
+{t:'hist',title:'Edades de los participantes',cats:['10–12','13–15','16–18','19–21'],vals:[8,15,12,5],max:20,step:10,yl:'Personas',xl:'Edad (años)',hl:[1]},
+{t:'bar',title:'Producción mensual',cats:['Enero','Febrero','Marzo','Abril'],vals:[120,150,135,180],max:200,step:100,yl:'Unidades',hl:[1,2]},
+{t:'pie',title:'Cómo llegan (400 estudiantes)',cats:['Bus','Auto','Bicicleta','Caminando'],vals:[45,25,20,10],hl:[2,3]},
+{t:'line',title:'Crecimiento semanal',cats:['Semana 1','Semana 2','Semana 3','Semana 4'],vals:[4,7,11,16],min:0,max:20,step:10,yl:'Centímetros',hl:[2,3]},
+{t:'scatter',title:'Estudio y calificaciones',pts:[[.5,2.4],[1,3.1],[1.5,2.9],[2,3.8],[2.5,4.2],[3,4],[3.5,4.9],[4,5.1],[4.5,4.8],[5,5.6],[5.5,5.9],[6,6.2],[6.5,6],[7,6.6]],xmax:8,xstep:2,min:1,max:7,step:2,xl:'Horas de estudio',yl:'Calificación'}
+];
+function chFmt(v){return String(v).replace('.',',')}
+function chEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function chBook(x,y,w,h,col){return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="2" fill="'+col+'"/><rect x="'+x+'" y="'+y+'" width="'+(w*.2)+'" height="'+h+'" rx="2" fill="#25093f" opacity=".35"/><rect x="'+(x+w*.4)+'" y="'+(y+h*.22)+'" width="'+(w*.42)+'" height="'+(h*.09)+'" fill="#25093f" opacity=".55"/><rect x="'+(x+w*.4)+'" y="'+(y+h*.42)+'" width="'+(w*.42)+'" height="'+(h*.09)+'" fill="#25093f" opacity=".55"/>'}
+function chartSVG(c,sol,W,H){
+  W=W||300;H=H||130;const L=36,R=10,T=22,B=c.xl?34:22,pw=W-L-R,ph=H-T-B,n=(c.cats||[]).length,f=chFmt,e=chEsc,hl=sol&&c.hl?c.hl:[];
+  let s='<svg class="chsvg" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+e(c.title)+'">';
+  s+='<text class="ct" x="'+W/2+'" y="11" text-anchor="middle">'+e(c.title)+'</text>';
+  const cart=c.t==='bar'||c.t==='hist'||c.t==='line'||c.t==='scatter',mn=c.min||0,mx=c.max,Y=v=>T+ph*(1-(v-mn)/(mx-mn));
+  if(cart){
+    for(let v=mn;v<=mx+1e-9;v+=c.step){const y=Y(v);s+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'"/><text x="'+(L-4)+'" y="'+(y+3)+'" text-anchor="end">'+f(v)+'</text>'}
+    s+='<line class="ax" x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'"/><line class="ax" x1="'+L+'" x2="'+L+'" y1="'+T+'" y2="'+(T+ph)+'"/>';
+    if(c.yl)s+='<text class="al" x="8" y="'+(T+ph/2)+'" text-anchor="middle" transform="rotate(-90 8 '+(T+ph/2)+')">'+e(c.yl)+'</text>';
+    if(c.xl)s+='<text class="al" x="'+(L+pw/2)+'" y="'+(H-3)+'" text-anchor="middle">'+e(c.xl)+'</text>';
+  }
+  if(c.t==='bar'||c.t==='hist'){
+    const sl=pw/n,bw=sl*(c.t==='hist'?1:.56);
+    c.vals.forEach((v,i)=>{const x=L+sl*i+(sl-bw)/2,y=Y(v);
+      s+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+(T+ph-y)+'" rx="'+(c.t==='hist'?0:2)+'" fill="'+(hl.includes(i)?CH_HL:CH_COL[0])+'"'+(c.t==='hist'?' stroke="#2d0b4e" stroke-width="1"':'')+'/>';
+      s+='<text class="cv" x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle">'+f(v)+'</text>';
+      s+='<text x="'+(L+sl*(i+.5))+'" y="'+(T+ph+10)+'" text-anchor="middle">'+e(c.cats[i])+'</text>'});
+  }else if(c.t==='line'){
+    const sl=pw/n,X=i=>L+sl*(i+.5),k=c.vals.length;
+    s+='<polyline fill="none" stroke="'+CH_COL[0]+'" stroke-width="2" stroke-linejoin="round" points="'+c.vals.map((v,i)=>X(i)+','+Y(v)).join(' ')+'"/>';
+    if(hl.length===2)s+='<line x1="'+X(hl[0])+'" y1="'+Y(c.vals[hl[0]])+'" x2="'+X(hl[1])+'" y2="'+Y(c.vals[hl[1]])+'" stroke="'+CH_HL+'" stroke-width="3.5" stroke-linecap="round"/>';
+    if(sol&&c.proj!=null)s+='<line x1="'+X(k-1)+'" y1="'+Y(c.vals[k-1])+'" x2="'+X(k)+'" y2="'+Y(c.proj)+'" stroke="'+CH_HL+'" stroke-width="2" stroke-dasharray="4 3"/><circle cx="'+X(k)+'" cy="'+Y(c.proj)+'" r="3.4" fill="#2d0b4e" stroke="'+CH_HL+'" stroke-width="2"/><text class="cv" x="'+X(k)+'" y="'+(Y(c.proj)-6)+'" text-anchor="middle" style="fill:'+CH_HL+'">'+f(c.proj)+'</text>';
+    c.vals.forEach((v,i)=>{s+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3.2" fill="'+(hl.includes(i)?CH_HL:'#fff')+'" stroke="#2d0b4e" stroke-width="1"/><text class="cv" x="'+X(i)+'" y="'+(Y(v)-6)+'" text-anchor="middle">'+f(v)+'</text>'});
+    c.cats.forEach((t,i)=>{s+='<text x="'+X(i)+'" y="'+(T+ph+10)+'" text-anchor="middle">'+e(t)+'</text>'});
+  }else if(c.t==='scatter'){
+    const X=v=>L+pw*v/c.xmax;
+    for(let v=0;v<=c.xmax;v+=c.xstep)s+='<text x="'+X(v)+'" y="'+(T+ph+10)+'" text-anchor="middle">'+v+'</text>';
+    const N=c.pts.length,mxm=c.pts.reduce((a,p)=>a+p[0],0)/N,mym=c.pts.reduce((a,p)=>a+p[1],0)/N;
+    let sxy=0,sxx=0;c.pts.forEach(p=>{sxy+=(p[0]-mxm)*(p[1]-mym);sxx+=(p[0]-mxm)*(p[0]-mxm)});
+    const m=sxy/sxx,b=mym-m*mxm,x0=.3,x1=7.4;
+    s+='<line x1="'+X(x0)+'" y1="'+Y(m*x0+b)+'" x2="'+X(x1)+'" y2="'+Y(m*x1+b)+'" stroke="'+CH_COL[1]+'" stroke-width="1.6" stroke-dasharray="4 3" opacity="'+(sol?1:.55)+'"/>';
+    c.pts.forEach(p=>{s+='<circle cx="'+X(p[0])+'" cy="'+Y(p[1])+'" r="3" fill="'+CH_COL[0]+'" stroke="#2d0b4e" stroke-width="1"/>'});
+  }else if(c.t==='pie'){
+    const r=Math.min((H-28)/2,46),cx=r+24,cy=(H+14)/2,lx=cx+r+26,tot=c.vals.reduce((a,b)=>a+b,0);let a0=-Math.PI/2;
+    c.vals.forEach((v,i)=>{const a1=a0+v/tot*2*Math.PI,x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0),x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),am=(a0+a1)/2,dim=sol&&hl.length&&!hl.includes(i);
+      s+='<path d="M'+cx+' '+cy+' L'+x0+' '+y0+' A'+r+' '+r+' 0 '+(a1-a0>Math.PI?1:0)+' 1 '+x1+' '+y1+' Z" fill="'+CH_COL[i]+'" stroke="#2d0b4e" stroke-width="1.5" opacity="'+(dim?.4:1)+'"/>';
+      s+='<text class="pl" x="'+(cx+r*.64*Math.cos(am))+'" y="'+(cy+r*.64*Math.sin(am)+3)+'" text-anchor="middle"'+(dim?' style="fill:#fff;opacity:.75"':'')+'>'+v+'%</text>';
+      const ly=cy-(c.vals.length*19)/2+i*19+9;
+      s+='<rect x="'+lx+'" y="'+(ly-6)+'" width="10" height="10" rx="2" fill="'+CH_COL[i]+'" opacity="'+(dim?.4:1)+'"/><text x="'+(lx+16)+'" y="'+(ly+3)+'" style="font-size:10px">'+e(c.cats[i])+'</text>';
+      a0=a1});
+  }else if(c.t==='pict'){
+    const big=H>=120,sp=big?36:26,y0=big?40:33,ih=big?24:19,iw=ih*.75,st=iw+8;
+    c.cats.forEach((nm,i)=>{const cy=y0+i*sp;
+      s+='<text x="10" y="'+(cy+4)+'" style="font-size:11px;font-weight:700;fill:#fff">'+e(nm)+'</text>';
+      for(let j=0;j<c.vals[i];j++)s+=chBook(62+j*st,cy-ih/2,iw,ih,CH_COL[1]);
+      if(sol)s+='<text class="cv" x="'+(62+c.vals[i]*st+4)+'" y="'+(cy+4)+'" style="fill:'+CH_HL+'">'+c.vals[i]+' × '+c.per+' = '+c.vals[i]*c.per+'</text>'});
+    const ly=y0+sp*(c.cats.length-1)+ih/2+(big?14:9);
+    s+=chBook(62,ly,10,13,CH_COL[1])+'<text x="78" y="'+(ly+10)+'" style="font-size:10px;font-weight:700;fill:#fff">= '+c.per+' '+e(c.unit)+'</text>';
+  }
+  return s+'</svg>';
+}
+let chLast='';
+function showChart(qtext){
+  const el=$('chart');if(!el)return;chLast=qtext;
+  const i=QS.findIndex(x=>x.q===qtext),c=i>=0?CHARTS[i]:null,flat=!matchMedia('(min-aspect-ratio: 13/10)').matches;
+  el.innerHTML=c?(flat?chartSVG(c,false,360,104):chartSVG(c,false,300,130)):'';
+  const tg=$('chartToggle');if(tg)tg.classList.toggle('on',!!c);
+}
+(function(){
+  const tg=$('chartToggle'),el=$('chart');if(!tg||!el)return;
+  // En pantallas bajas (celulares) el gráfico empieza oculto para no tapar el tablero ni los controles
+  if(innerHeight<700)el.classList.add('off');
+  const sync=()=>{const on=!el.classList.contains('off');tg.setAttribute('aria-pressed',on);tg.textContent=on?'📊 Ocultar gráfico':'📊 Ver gráfico'};
+  tg.addEventListener('click',()=>{el.classList.toggle('off');sync()});sync();
+})();
+addEventListener('resize',()=>{if(chLast)showChart(chLast)});
 function openSol(){
   const list=$("solList");list.textContent="";
   const played=Array.isArray(G.qorder)&&G.qorder.length===QS.length,ord=played?G.qorder:QS.map((_,i)=>i);
@@ -620,7 +723,7 @@ function openSol(){
     const it=mk("div","solItem"),hd=mk("div","solHead"),rr=mk("div","solR","✔ Respuesta correcta: ");
     hd.appendChild(mk("span","solNum","Ronda "+(n+1)));hd.appendChild(mk("span","solTitle",s.t));
     const b=document.createElement("b");b.textContent=s.r;rr.appendChild(b);
-    it.appendChild(hd);it.appendChild(mk("div","solQ",q.q));it.appendChild(mk("div","solD",s.d));it.appendChild(rr);
+    it.appendChild(hd);it.appendChild(mk("div","solQ",q.q));if(CHARTS[qi]){const ch=mk("div","solChart");ch.innerHTML=chartSVG(CHARTS[qi],true);it.appendChild(ch)}it.appendChild(mk("div","solD",s.d));it.appendChild(rr);
     list.appendChild(it);
   });
   const pn=$("solPanel");pn.classList.add("on");pn.scrollTop=0;
@@ -749,7 +852,7 @@ function startGame(){
 function startRound(){completing=false;G.round++;hud();E.forEach(e=>{e.kx=e.kz=0;e.stun=0;e.lockTileIndex=null;e.vy=0;e.on=true;e.y=0;e.mesh.visible=e.sh.visible=e.alive;});
 T.forEach((t,i)=>{t.solid=true;t.v=0;t.m.position.y=0;t.m.rotation.set(0,0,0);t.top.color.setHex(0xffffff);t.pop=-(i%4+Math.floor(i/4))*.12});
 const Q=G.questions[G.round-1],o=Q.o.map((t,i)=>({t,ok:i===0}));for(let i=o.length-1;i>0;i--){const j=RI(0,i);[o[i],o[j]]=[o[j],o[i]]}
-G.displayOptions=o.map(x=>x.t);$('q').textContent=Q.q;toast('Ronda '+G.round,'');
+G.displayOptions=o.map(x=>x.t);$('q').textContent=Q.q;showChart(Q.q);toast('Ronda '+G.round,'');
 $('opts').innerHTML=o.map((x,i)=>'<div style="background:'+QC[i]+'">'+'ABCD'[i]+') '+x.t+'</div>').join('');
 T.forEach((t,i)=>{const q=Math.floor(i/8)*2+(i%4>>1);t.ok=o[q].ok;labQ(t,'ABCD'[q],QC[q])});
 setPhase('pick',Q.t,'Corre a tu respuesta')}

@@ -36,6 +36,12 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.7)}
 #jb{right:22px;width:96px;height:96px;border-radius:50%;border:0;background:var(--pink);color:#fff;font-size:15px}
 @media(pointer:coarse){#joy,#jb{display:block}}
+#pb{position:fixed;right:22px;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);z-index:6;width:84px;height:84px;border-radius:50%;border:0;border-bottom:5px solid #b3730a;background:#ff9f1c;color:#25093f;font:15px "Titan One","Fredoka",system-ui,sans-serif;line-height:1.05;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;touch-action:none;padding:0}
+#pb b{font-size:28px;line-height:1;font-weight:400}
+#pb small{font:700 10px "Fredoka",system-ui,sans-serif;opacity:.75}
+#pb:active{transform:translateY(2px)}
+#pb.cd{opacity:.45;filter:grayscale(.6)}
+@media(pointer:coarse){#pb{right:128px}#pb small{display:none}}
 #ntags .ntag{position:fixed;left:0;top:0;z-index:4;display:none;pointer-events:none;padding:2px 9px;border-radius:9px;background:rgba(24,6,44,.8);border:1px solid rgba(255,255,255,.4);font:700 12px "Fredoka",system-ui,sans-serif;color:#fff;white-space:nowrap;will-change:transform}
 #ntags .ntag.me{border-color:var(--cyan);color:var(--cyan)}
 #rules{text-align:left;background:rgba(255,255,255,.06);border:2px solid rgba(255,210,63,.45);border-radius:14px;padding:11px 13px;margin:0 0 14px;font-size:13px;line-height:1.4;color:#eadcff}
@@ -70,7 +76,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 #qrLabel{font-size:13px;color:#eadcff;margin:7px 0 6px}
 #copyLink{border:0;border-radius:12px;background:#ffd23f;color:#25093f;font:16px 'Titan One';padding:7px 16px;cursor:pointer}
 @media (min-aspect-ratio:13/10){#hud{right:auto;bottom:0;width:clamp(250px,36vw,420px);align-items:stretch;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 8px calc(env(safe-area-inset-left,0px) + 8px)}#card,#opts{max-width:none}#bar{flex-wrap:wrap;justify-content:center;gap:6px}#rd{flex:1 0 100%;text-align:center;white-space:normal}#tm,#al{flex:1;text-align:center}#roomHud{align-self:center}}
-@media (max-height:520px){#joy{transform:scale(.8);transform-origin:left bottom}#jb{transform:scale(.85);transform-origin:right bottom}#hud{gap:4px}#card{padding:4px 10px}#q{font-size:12px;line-height:1.2}#opts div{font-size:11px;line-height:1.15;padding:3px 6px}#bar{font-size:13px}#bar span{padding:2px 8px}}
+@media (max-height:520px){#pb{scale:.85;transform-origin:right bottom}@media(pointer:coarse){#pb{right:112px}}#joy{transform:scale(.8);transform-origin:left bottom}#jb{transform:scale(.85);transform-origin:right bottom}#hud{gap:4px}#card{padding:4px 10px}#q{font-size:12px;line-height:1.2}#opts div{font-size:11px;line-height:1.15;padding:3px 6px}#bar{font-size:13px}#bar span{padding:2px 8px}}
 </style>
 </head>
 <body>
@@ -81,7 +87,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <div id="scoreboard" aria-hidden="true"><strong>Tabla de puntos</strong><div id="scoreRows">Aún no hay puntuaciones</div></div>
 <div id="ov"><div id="bx">
 <h1 id="t1">GRÁFICOS AL LÍMITE</h1><h2 id="t2">Preguntas y casillas</h2>
-<p id="t3">Entra a una sala o crea una nueva. El primer jugador será el anfitrión. ¡Juega con personas desde cualquier lugar!<br>WASD o flechas para moverte, espacio para saltar.</p>
+<p id="t3">Entra a una sala o crea una nueva. El primer jugador será el anfitrión. ¡Juega con personas desde cualquier lugar!<br>WASD o flechas para moverte, espacio para saltar, E o Shift para empujar.</p>
 <section id="rules" aria-label="Reglas del juego">
 <h3>¿CÓMO JUGAR?</h3>
 <p><b>Objetivo:</b> Responder correctamente las 15 preguntas de gráficos estadísticos y conseguir la mayor cantidad de puntos posible.</p>
@@ -90,6 +96,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <li><b>Únete a una partida:</b> Puedes crear una sala o ingresar a una usando el código de otro jugador.</li>
 <li><b>Lee la pregunta:</b> En cada ronda aparecerá una pregunta con cuatro alternativas (A, B, C y D).</li>
 <li><b>Busca tu respuesta:</b> Observa las letras de las plataformas y muévete hacia la que corresponde a la alternativa correcta.</li>
+<li><b>Empuja:</b> pulsa 👊 (o la tecla E / Shift) para dar un empujón a quien tengas delante y sacarlo de su casilla. ¡Tiene un breve tiempo de espera!</li>
 <li><b>¡No te quedes quieto!</b> Cuando termine el tiempo, las plataformas incorrectas comenzarán a caer.</li>
 <li><b>Evita caer:</b> Si estás sobre una plataforma incorrecta, caerás y perderás la oportunidad de ganar el punto de esa ronda.</li>
 <li><b>Gana puntos:</b> Cada jugador que sobreviva a una ronda obtiene 1 punto.</li>
@@ -117,6 +124,7 @@ h2{margin:4px 0 12px;font-size:21px;color:var(--cyan)}
 <div id="ntags"></div>
 <div id="joy"><div id="knob"></div></div>
 <button id="jb">Saltar</button>
+<button id="pb" type="button" aria-label="Empujar"><b>👊</b>Empujar<small>E / Shift</small></button>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
@@ -497,6 +505,7 @@ const playerMetaKey=p=>[p.name,p.score,p.alive,p.respawnAt,p.color].join("|");
 function onPlayerData(snap){
   const id=snap.key,p=snap.val();if(!p)return;
   const prev=playersCache[id];
+  if(id!==playerId)handleRemotePush(id,p);
   if(!prev||p.hb!==prev.hb)lastSeen[id]=Date.now();
   playersCache[id]=p;
   if(!prev){syncPlayers(playersCache);return;}             // jugador nuevo: recalcula slots
@@ -617,7 +626,7 @@ function projPx(x,y,z,k,W,H){const cy=26*k,cz=20*k,fl=Math.hypot(cy,cz),fy=-cy/f
 function frameCam(W,H){
   const hr=document.getElementById('hud').getBoundingClientRect(),side=(typeof matchMedia==='function'?matchMedia('(min-aspect-ratio: 13/10)').matches:W/H>=1.3)&&hr.right<W*.6,pad=8,bot=44,touch=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
   let fx,fy,fw,fh;
-  if(side){fx=hr.right+pad;fy=pad;fw=W-fx-pad-(touch?118:0);fh=H-fy-bot}else{fx=pad;fy=hr.bottom+pad;fw=W-2*pad;fh=H-fy-(touch?148:bot)}
+  if(side){fx=hr.right+pad;fy=pad;fw=W-fx-pad-(touch?200:108);fh=H-fy-bot}else{fx=pad;fy=hr.bottom+pad;fw=W-2*pad;fh=H-fy-(touch?148:112)}
   fw=Math.max(fw,120);fh=Math.max(fh,120);
   const bb=k=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;BPTS.forEach(p=>{const q=projPx(p[0],p[1],p[2],k,W,H);x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])});return{x0,y0,x1,y1,w:x1-x0,h:y1-y0}};
   let k=1;for(let i=0;i<6;i++){const b=bb(k);k=Math.min(4,Math.max(.5,k*Math.max(b.w/fw,b.h/fh)))}
@@ -745,9 +754,44 @@ function end(){
   $('t3').textContent='La tabla muestra los puntos acumulados por las rondas ganadas.';
   $('go').textContent='Jugar otra vez';$('go').disabled=!!roomRef&&!isHost;$('solBtn').classList.add('on');$('ov').classList.remove('off');
 }
+// ===== Empujón estilo Fall Guys =====
+const PUSH_CD=900,PUSH_RANGE=3,PUSH_FORCE=15,pushSeen={},pushFx=[];
+let pushReq=false,pushReadyAt=0,pushN=Date.now();
+const ringGeo=new THREE.RingGeometry(.5,.8,32);
+function playPushFx(x,z){
+  const m=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85,side:THREE.DoubleSide}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,.4,z);sc.add(m);pushFx.push({m,t:0});
+}
+function tryPush(e){
+  const now=performance.now();if(now<pushReadyAt)return;
+  pushReadyAt=now+PUSH_CD;
+  const r=e.mesh.rotation.y,dx=Math.sin(r),dz=Math.cos(r);
+  e.kx=(e.kx||0)+dx*5;e.kz=(e.kz||0)+dz*5;e.pushT=.25;
+  playPushFx(e.x,e.z);
+  const b=$('pb');b.classList.add('cd');setTimeout(()=>b.classList.remove('cd'),PUSH_CD);
+  if(roomRef&&playerId){pushN++;roomRef.child('players/'+playerId+'/push').set({n:pushN,x:Math.round(e.x*100)/100,z:Math.round(e.z*100)/100,dx:Math.round(dx*100)/100,dz:Math.round(dz*100)/100}).catch(err=>console.warn('No se pudo enviar el empujón:',err));}
+}
+function handleRemotePush(id,p){
+  const pu=p&&p.push;
+  if(!(id in pushSeen)){pushSeen[id]=pu?pu.n:null;return;}   // lo que ya había al conectar no cuenta
+  if(!pu||pushSeen[id]===pu.n)return;
+  pushSeen[id]=pu.n;
+  const slot=slotPlayerIds.indexOf(id);if(slot>0&&E[slot])E[slot].pushT=.25;
+  const px=Number(pu.x)||0,pz=Number(pu.z)||0,pdx=Number(pu.dx)||0,pdz=Number(pu.dz)||0;
+  playPushFx(px,pz);
+  const me=E[0];if(!me||!me.alive||G.ph==='idle'||me.hold)return;
+  const ox=me.x-px,oz=me.z-pz,d=Math.hypot(ox,oz);if(d>PUSH_RANGE)return;
+  const ux=d>.001?ox/d:pdx,uz=d>.001?oz/d:pdz;
+  if(d>.9&&ux*pdx+uz*pdz<.25)return;                         // solo a quien está delante
+  let hx=pdx*.7+ux*.3,hz=pdz*.7+uz*.3;const hl=Math.hypot(hx,hz)||1;hx/=hl;hz/=hl;
+  me.kx=hx*PUSH_FORCE;me.kz=hz*PUSH_FORCE;me.stun=.45;
+  if(me.on){me.vy=4.5;me.on=false}
+  try{if(navigator.vibrate)navigator.vibrate(60)}catch(err){}
+}
+$('pb').addEventListener('pointerdown',e=>{e.preventDefault();pushReq=true});
 // Controles
 const K={};let jx=0,jz=0,jump=false;
-addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=true;if(e.code==='Space')jump=true;if(/Arrow|Space/.test(e.code))e.preventDefault()});
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=true;if(e.code==='Space')jump=true;if(!e.repeat&&(e.code==='KeyE'||e.code==='KeyF'||e.code==='ShiftLeft'||e.code==='ShiftRight'))pushReq=true;if(/Arrow|Space/.test(e.code))e.preventDefault()});
 addEventListener('keyup',e=>K[e.code]=false);
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 const joy=$('joy'),kn=$('knob');
@@ -761,11 +805,13 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05
 if(G.ph!=='idle'){G.t-=dt;const tv=Math.max(0,Math.ceil(G.t));if(tv!==lastTm){lastTm=tv;$('tm').textContent=tv}if((!roomRef||isHost)&&G.t<=0)nextPhase()}
 if(G.ph==='warn')T.forEach(t=>{if(!t.ok)t.top.color.setHex(Math.floor(clk.elapsedTime*8)%2?0x555555:0xffffff)});
 T.forEach(t=>{if(!t.solid){t.v+=30*dt;t.m.position.y-=t.v*dt;t.m.rotation.x+=dt*.6}});
-E.forEach((e,idx)=>{if(!e.alive){if(idx===0)jump=false;return}if(roomRef&&idx>0){
+E.forEach(e=>{if(e.pushT>0){e.pushT-=dt;const s=Math.sin(Math.PI*(1-Math.max(0,e.pushT)/.25));e.mesh.scale.set(1-.15*s,1+.1*s,1+.45*s)}else if(e.pushT!==undefined){e.pushT=undefined;e.mesh.scale.set(1,1,1)}});
+for(let i=pushFx.length-1;i>=0;i--){const f=pushFx[i];f.t+=dt/.35;if(f.t>=1){sc.remove(f.m);f.m.material.dispose();pushFx.splice(i,1);continue}const k=1+f.t*3.2;f.m.scale.set(k,k,k);f.m.material.opacity=.85*(1-f.t)}
+E.forEach((e,idx)=>{if(!e.alive){if(idx===0){jump=false;pushReq=false}return}if(roomRef&&idx>0){
   if(e.targetX!==undefined){const ox=e.x,oz=e.z,k=1-Math.exp(-10*dt);e.x+=(e.targetX-e.x)*k;e.z+=(e.targetZ-e.z)*k;const mx=e.x-ox,mz=e.z-oz;if(Math.hypot(mx,mz)>.002)e.mesh.rotation.y=Math.atan2(mx,mz)}
   if(e.targetY!==undefined)e.y+=(e.targetY-e.y)*(1-Math.exp(-14*dt));const rt=tileAt(e.x,e.z);e.sh.visible=!!(rt&&rt.solid)&&e.y>-.2;e.mesh.position.set(e.x,e.y+.3,e.z);e.sh.position.set(e.x,.32,e.z);return}if(e.hold){if(G.ph==='warn'||G.ph==='drop'){e.y=0;e.vy=0;e.on=true;e.mesh.position.set(e.x,.3,e.z);e.sh.position.set(e.x,.32,e.z);return}e.hold=false;e.y=0;e.vy=0;e.on=true}let dx=0,dz=0,sp=7;
 if(!e.bot){if(G.ph!=='idle'){dx=(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+jx;dz=(K.KeyS||K.ArrowDown?1:0)-(K.KeyW||K.ArrowUp?1:0)+jz;
-const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l}if(jump&&e.on){e.vy=9.5;e.on=false}}jump=false}
+const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l}if(jump&&e.on){e.vy=9.5;e.on=false}if(pushReq)tryPush(e);if(e.stun>0){e.stun-=dt;dx*=.3;dz*=.3}}pushReq=false;jump=false}
 
 // En los últimos 3 segundos de respuesta, la casilla que pisa queda bloqueada:
 // límites invisibles impiden pasar a otra opción, pero permiten moverse dentro de ella.
@@ -773,7 +819,8 @@ if(((G.ph==='pick'&&G.t<=3)||G.ph==='warn'||G.ph==='drop')&&e.lockTileIndex===nu
   const current=tileAt(e.x,e.z);
   if(current)e.lockTileIndex=T.indexOf(current);
 }
-let nx=e.x+dx*sp*dt,nz=e.z+dz*sp*dt;
+const kd=Math.exp(-5*dt);e.kx=(e.kx||0)*kd;e.kz=(e.kz||0)*kd;
+let nx=e.x+(dx*sp+e.kx)*dt,nz=e.z+(dz*sp+e.kz)*dt;
 // Muro perimetral invisible: evita salir de las 4x4 plataformas incluso antes de iniciar.
 const EDGE=7.72;
 nx=Math.max(-EDGE,Math.min(EDGE,nx));nz=Math.max(-EDGE,Math.min(EDGE,nz));
